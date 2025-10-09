@@ -56,6 +56,10 @@ class TrainingCourse(models.Model):
     def course_status_name(self):
         return self.COURSE_STATUS_CHOICES[self.course_status][1]
 
+    @property
+    def course_id_prefix(self):
+        return f"{self.sis_import_prefix}-{self.term_id}"
+
     def get_membership_for_course(self):
         if self.membership_type == self.MEMBERSHIP_TITLE_VI:
             return get_title_vi_membership()
@@ -63,18 +67,14 @@ class TrainingCourse(models.Model):
         raise ValueError("Invalid membership type")
 
     def get_all_course_sis_import_ids(self):
-        return [(f"{self.sis_import_prefix}-"
-                 f"TERM-{self.canvas_term_id}-"
-                 f"{i}") for i in range(self.course_count)]
+        return [
+            f"{self.course_id_prefix}-{i}" for i in range(self.course_count)]
 
-    def get_course_sis_import_id_for_member(self, integration_id):
-        """
-        Returns the next sis_import_id for a new course.
-        """
-        return (f"{self.sis_import_prefix}-"
-                f"{self.course_number_for_member(integration_id)}")
+    def get_course_id_for_member(self, integration_id):
+        return (f"{self.course_id_prefix}-"
+                f"{self.course_copy_for_member(integration_id)}")
 
-    def course_number_for_member(self, integration_id):
+    def course_copy_for_member(self, integration_id):
         """
         Which of the self.course_count courses to use for
         member with integration_id
@@ -83,9 +83,9 @@ class TrainingCourse(models.Model):
 
     def json_data(self):
         return {
-            "blueprint_canvas_course_id": self.blueprint_canvas_course_id,
-            "canvas_term_id": self.canvas_term_id,
-            "canvas_account_id": self.canvas_account_id,
+            "blueprint_course_id": self.blueprint_course_id,
+            "term_id": self.term_id,
+            "account_id": self.account_id,
             "membership_type": self.MEMBERSHIP_CHOICES[
                 self.membership_type][1],
             "course_status": self.course_status,

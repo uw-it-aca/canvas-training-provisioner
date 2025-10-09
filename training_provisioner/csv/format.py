@@ -36,6 +36,11 @@ class CSVFormat(object):
 
 
 # CSV Header classes
+class AccountHeader(CSVFormat):
+    def __init__(self):
+        self.data = ['account_id', 'parent_account_id', 'name', 'status']
+
+
 class TermHeader(CSVFormat):
     def __init__(self):
         self.data = ['term_id', 'name', 'status', 'start_date', 'end_date']
@@ -60,6 +65,18 @@ class EnrollmentHeader(CSVFormat):
 
 
 # CSV Data classes
+class AccountCSV(CSVFormat):
+    """
+    account_id, parent_account_id, name, status (active|deleted)
+    """
+    def __init__(self, account_id, parent_id, context, status='active'):
+        self.key = account_id
+        self.data = [account_id,
+                     parent_id,
+                     account_name(context),
+                     status]
+
+
 class TermCSV(CSVFormat):
     """
     term_id, name, status (active|deleted), start_date, end_date

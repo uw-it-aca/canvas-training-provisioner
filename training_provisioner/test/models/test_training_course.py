@@ -3,17 +3,26 @@
 
 from django.test import TestCase
 from training_provisioner.models import TrainingCourse
-import mock
+from mock import patch
 
 
 class TrainingCourseModelTest(TestCase):
     fixtures = ['test_data/training_course.json']
 
-    @mock.patch(
-        'training_provisioner.dao.membership.get_title_vi_membership',
-        return_value=['12345678', '12345677'])
-    def test_membership(self, mock_update):
+    @patch('training_provisioner.models.'
+           'training_course.get_title_vi_membership')
+    def test_membership(self, mock_membership):
+        mock_membership.return_value = ['12345678', '12345679']
 
-        courses = TrainingCourse.objects.active_courses()
+        course = TrainingCourse.objects.get(pk=1)
 
-        self.assertEqual(courses.count(), 1)
+        course_id_list = course.get_all_course_sis_import_ids()
+        self.assertEqual(course_id_list[0], 'TEST_COURSE-2025-2026-0')
+        self.assertEqual(course_id_list[1], 'TEST_COURSE-2025-2026-1')
+
+        members = course.get_membership_for_course()
+        self.assertEqual(len(members), 2)
+
+        for i, member in enumerate(members):
+            member_course = course.get_course_id_for_member(member)
+            self.assertEqual(member_course, course_id_list[i])
