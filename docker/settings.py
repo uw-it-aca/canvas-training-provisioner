@@ -10,9 +10,9 @@ if os.getenv('ENV', 'localdev') == 'localdev':
     DEBUG = True
     TRAINING_IMPORT_CSV_DEBUG = True
     MEDIA_ROOT = os.getenv('TRAINING_IMPORT_CSV_ROOT', '/app/csv')
+    SIS_IMPORT_CSV_DEBUG = True
 else:
     TRAINING_IMPORT_CSV_DEBUG = False
-    CSRF_TRUSTED_ORIGINS = ['https://' + os.getenv('CLUSTER_CNAME')]
     STORAGES = {
         'default': {
             'BACKEND': 'storages.backends.gcloud.GoogleCloudStorage',
