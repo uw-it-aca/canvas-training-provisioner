@@ -11,7 +11,7 @@ class TrainingCourseModelTest(TestCase):
 
     @mock.patch(
         'training_provisioner.dao.membership.get_title_vi_membership',
-        return_value=['12345678'])
+        return_value=['12345678', '12345677'])
     def test_membership(self, mock_update):
 
         courses = TrainingCourse.objects.active_courses()
