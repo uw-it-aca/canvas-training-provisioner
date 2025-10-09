@@ -3,9 +3,9 @@
     "model": "training_provisioner.trainingcourse",
     "pk": 1,
     "fields": {
-        "blueprint_canvas_course_id": 123,
-        "canvas_term_id": 2,
-        "canvas_account_id": 8675309,
+        "blueprint_course_id": "BLUEPRINT_123",
+        "term_id": "2025-2026",
+        "account_id": "TRAINING_COURSES",
         "membership_type": 0,
         "course_status": 0,
         "sis_import_prefix": "TEST_COURSE",

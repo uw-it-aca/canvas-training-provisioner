@@ -5,8 +5,8 @@
 from django.conf import settings
 from django.core.files.storage import default_storage
 from training_provisioner.csv.format import (
-    CourseHeader, SectionHeader, EnrollmentHeader,
-    CourseCSV, SectionCSV, EnrollmentCSV)
+    TermHeader, CourseHeader, SectionHeader, EnrollmentHeader,
+    TermCSV, CourseCSV, SectionCSV, EnrollmentCSV)
 from datetime import datetime
 from logging import getLogger
 import os

@@ -2,13 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from django.test import TestCase
-from training_provisioner.models import CourseBlueprint
-import mock
+from training_provisioner.models import Course
 
 
-class CourseBlueprintModelTest(TestCase):
-    @mock.patch.object(
-        'training_provisioner.dao.membership.get_title_vi_membership')
-    def test_membership(self):
-        mock_get_data.return_value = ['12345678']
+class CourseModelTest(TestCase):
+    fixtures = ['test_data/training_course.json', 'test_data/course.json']
+
+    def test_course_model(self):
+        course = Course.objects.all()[0]
+        self.assertEqual(course.training_course.pk, 1)
+        self.assertEqual(course.priority, Course.PRIORITY_DEFAULT)
+        self.assertIsNone(course.queue_id)
+        self.assertIsNone(course.deleted_date)
 

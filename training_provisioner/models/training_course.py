@@ -33,9 +33,10 @@ class TrainingCourse(models.Model):
         (COURSE_STATUS_PUBLISHED, 'published'),
     )
 
-    blueprint_canvas_course_id = models.IntegerField(null=False)
-    canvas_term_id = models.IntegerField(default=0)
-    canvas_account_id = models.SmallIntegerField()
+    blueprint_course_id = models.CharField(
+        max_length=80, null=True, db_index=True)
+    term_id = models.CharField(max_length=30, db_index=True)
+    account_id = models.CharField(max_length=80, null=True)
     membership_type = models.SmallIntegerField(
         default=MEMBERSHIP_TITLE_VI,
         choices=MEMBERSHIP_CHOICES)

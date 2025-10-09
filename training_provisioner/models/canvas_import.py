@@ -192,3 +192,6 @@ class Import(models.Model):
     def _process_warnings(self, warnings):
         return [w for w in warnings if not re.search(
             '-(MSIS|THLEAD)-(480|550|601)-', w[-1])]
+
+    class Meta:
+        db_table = 'import'

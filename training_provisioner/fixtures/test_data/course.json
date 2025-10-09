@@ -1,0 +1,15 @@
+[
+  {
+    "model": "training_provisioner.course",
+    "pk": 1,
+    "fields": {
+        "training_course": 1,
+        "course_id": "TRAINING_COURSE_123_0",
+        "term_id": "2025-2026",
+        "provisioned_date": "2024-08-22T17:41:28+00:00",
+        "deleted_date": null,
+        "priority": 1,
+        "queue_id": null
+    }
+  }
+]

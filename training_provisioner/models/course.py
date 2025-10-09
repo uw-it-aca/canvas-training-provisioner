@@ -71,8 +71,10 @@ class Course(ImportResource):
     """
     training_course = models.ForeignKey(
         TrainingCourse, on_delete=models.CASCADE)
+    course_id = models.CharField(max_length=80, null=True, db_index=True)
+    term_id = models.CharField(max_length=30, db_index=True)
     provisioned_date = models.DateTimeField(auto_now=True)
-    deleted_date = models.DateTimeField(auto_now=True)
+    deleted_date = models.DateTimeField(null=True)
     priority = models.SmallIntegerField(
         default=ImportResource.PRIORITY_NONE,
         choices=ImportResource.PRIORITY_CHOICES)
