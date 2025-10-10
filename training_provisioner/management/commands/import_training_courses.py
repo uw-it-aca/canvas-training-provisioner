@@ -3,7 +3,7 @@
 
 
 from django.core.management.base import BaseCommand
-from training_provisioner.models import Course, Enrollment
+from training_provisioner.models import Training, Course, Enrollment
 
 
 class Command(BaseCommand):
@@ -18,6 +18,11 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         priority = options.get('priority')
+
+        for training_course in Training.objects.active_courses():
+            Course.objects.add_courses(training_course)
+
+
         try:
             imp = Course.objects.queue_by_priority(priority)
         except EmptyQueueException as ex:

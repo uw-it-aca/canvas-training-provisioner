@@ -36,7 +36,7 @@ class TrainingCourse(models.Model):
     blueprint_course_id = models.CharField(
         max_length=80, null=True, db_index=True)
     term_id = models.CharField(max_length=30, db_index=True)
-    account_id = models.CharField(max_length=80, null=True)
+    account_id = models.CharField(max_length=80)
     membership_type = models.SmallIntegerField(
         default=MEMBERSHIP_TITLE_VI,
         choices=MEMBERSHIP_CHOICES)
@@ -58,14 +58,22 @@ class TrainingCourse(models.Model):
     def course_id(self, ordinal):
         return f"{self.blueprint_course_id}-{self.term_id}-{ordinal}"
 
+    def section_id(self, ordinal):
+        return f"{self.blueprint_course_id}-{self.term_id}-{ordinal}-"
+
     def get_membership_for_course(self):
         if self.membership_type == self.MEMBERSHIP_TITLE_VI:
             return get_title_vi_membership()
 
         raise ValueError("Invalid membership type")
 
-    def get_all_course_sis_import_ids(self):
+    @property
+    def course_import_ids(self):
         return [f"{self.course_id(i)}" for i in range(self.course_count)]
+
+    @property
+    def section_import_ids(self):
+        return [f"{self.course_id(i)}" for i in range(self.section_count)]
 
     def get_course_id_for_member(self, integration_id):
         return self.course_id(self.course_ordinal_for_member(integration_id))
@@ -75,7 +83,23 @@ class TrainingCourse(models.Model):
         Which of the self.course_count courses the
         member with integration_id is enrolled
         """
-        return int(integration_id) % self.course_count
+        return self._hash(integration_id) % self.course_count
+
+    def get_section_id_for_member(self, integration_id):
+        return self.section_id(
+            self.section_ordinal_for_member(integration_id)) if (
+                self.section_count) else None
+
+    def section_ordinal_for_member(self, integration_id):
+        """
+        Which of the self.section_count courses the
+        member with integration_id is enrolled
+        """
+        return self._hash(integration_id) % self.section_count if (
+            self.section_count) else None
+
+    def _hash(self, integration_id):
+        return int(integration_id)
 
     def json_data(self):
         return {
@@ -99,3 +123,4 @@ class TrainingCourse(models.Model):
 
     class Meta:
         db_table = 'training_course'
+        unique_together = ('blueprint_course_id', 'term_id')

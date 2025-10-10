@@ -9,10 +9,13 @@ import json
 
 
 class CourseManager(models.Manager):
-    def add_course(self, course_data):
-        # get or create suitable Course model
-        # set priority non-zero
-        pass
+    def add_courses(self, training_course):
+        for course_id in training_course.course_import_ids:
+            course, _ = Course.objects.get_or_create(
+                course_id=course_id, defaults={
+                    'training_course': training_course,
+                    'priority': ImportResource.PRIORITY_DEFAULT
+                })
 
     def get_courses_by_priority(self, priority):
         return self.filter(priority=priority, deleted_date__isnull=True)
@@ -71,9 +74,10 @@ class Course(ImportResource):
     """
     training_course = models.ForeignKey(
         TrainingCourse, on_delete=models.CASCADE)
-    course_id = models.CharField(max_length=80, null=True, db_index=True)
-    term_id = models.CharField(max_length=30, db_index=True)
-    provisioned_date = models.DateTimeField(auto_now=True)
+    course_id = models.CharField(
+        max_length=80, null=True, db_index=True, unique=True)
+    created_date = models.DateTimeField(auto_now=True)
+    provisioned_date = models.DateTimeField(null=True)
     deleted_date = models.DateTimeField(null=True)
     priority = models.SmallIntegerField(
         default=ImportResource.PRIORITY_NONE,
@@ -83,8 +87,8 @@ class Course(ImportResource):
     objects = CourseManager()
 
     @property
-    def term_sis_id(self):
-        return f"TERM_{self.training_course.canvas_term_id}"
+    def term_id(self):
+        return self.training_course.term_id
 
     @property
     def status(self):
@@ -92,14 +96,16 @@ class Course(ImportResource):
 
     @property
     def account_id(self):
-        return self.training_course.canvas_account_id
+        return self.training_course.account_id
 
     def json_data(self):
         return {
-            "training_course_id": self.training_course.id,
-            "term_sis_id": self.term_sis_id,
+            "training_course": self.training_course,
+            "course_id": self.course_id,
+            "term_id": self.term_id,
             "status": self.status,
             "account_id": self.account_id,
+            "created_date": localtime(self.deleted_date).isoformat(),
             "provisioned_date": localtime(self.provisioned_date).isoformat() if (
                 self.provisioned_date is not None) else None,
             "deleted_date": localtime(self.deleted_date).isoformat() if (

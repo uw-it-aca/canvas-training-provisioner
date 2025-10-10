@@ -7,17 +7,22 @@ import json
 
 
 class EnrollmentManager(models.Manager):
-    def add_enrollment(self, enrollment_data):
-        # get or create suitable Enrollment model
-        # set priority non-zero
-        pass
+    def add_enrollments(self, training_course):
+        for netid in training_course.get_membership_for_course():
+            course_id = training_course.get_course_id_for_member(netid)
+            section_id = training_course.get_section_id_for_member(netid)
+            enrollment, _ = Enrollment.objects.get_or_create(
+                integration_id=netid, course_id=course_id,
+                section_id=section_id, defaults={
+                    'priority': ImportResource.PRIORITY_DEFAULT
+                })
 
     def queued(self, queue_id):
         return super(EnrollmentManager, self).get_queryset().filter(
             queue_id=queue_id)
 
     def dequeue(self, sis_import):
-        Course.objects.dequeue(sis_import)
+        Enrollment.objects.dequeue(sis_import)
         if sis_import.is_imported():
             # Decrement the priority
             super(EnrollmentManager, self).get_queryset().filter(
@@ -43,8 +48,8 @@ class Enrollment(ImportResource):
     """
     integration_id = models.CharField(max_length=8)
     course_id = models.CharField(max_length=80)
-    section_id = models.CharField(max_length=80)
-    enrollment_datetime = models.DateTimeField()
+    section_id = models.CharField(max_length=80, null=True)
+    enrollment_datetime = models.DateTimeField(null=True)
     added_date = models.DateTimeField(auto_now=True)
     deleted_date = models.DateTimeField(null=True)
     priority = models.SmallIntegerField(
@@ -69,3 +74,4 @@ class Enrollment(ImportResource):
 
     class Meta:
         db_table = 'enrollment'
+        unique_together = ('integration_id', 'course_id', 'section_id')

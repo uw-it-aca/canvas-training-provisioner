@@ -2,16 +2,20 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from django.test import TestCase
-from training_provisioner.models import Course
+from training_provisioner.models import (
+    TrainingCourse, Course, ImportResource)
 
 
 class CourseModelTest(TestCase):
-    fixtures = ['test_data/training_course.json', 'test_data/course.json']
+    fixtures = ['test_data/training_course.json']
 
     def test_course_model(self):
-        course = Course.objects.all()[0]
-        self.assertEqual(course.training_course.pk, 1)
-        self.assertEqual(course.priority, Course.PRIORITY_DEFAULT)
-        self.assertIsNone(course.queue_id)
-        self.assertIsNone(course.deleted_date)
+        for training_course in TrainingCourse.objects.active_courses():
+            Course.objects.add_courses(training_course)
 
+        courses = Course.objects.all()
+        self.assertEqual(courses.count(), 2)
+
+        for course in courses:
+            self.assertIsNotNone(course.training_course)
+            self.assertEqual(course.priority, ImportResource.PRIORITY_DEFAULT)
