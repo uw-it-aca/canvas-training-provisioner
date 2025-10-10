@@ -43,7 +43,6 @@ class TrainingCourse(models.Model):
     course_status = models.SmallIntegerField(
         default=COURSE_STATUS_ACTIVE,
         choices=COURSE_STATUS_CHOICES)
-    sis_import_prefix = models.CharField(max_length=255, unique=True)
     is_provisioned = models.BooleanField(default=False)
     course_count = models.IntegerField(default=0)
     section_count = models.IntegerField(default=0)
@@ -56,9 +55,8 @@ class TrainingCourse(models.Model):
     def course_status_name(self):
         return self.COURSE_STATUS_CHOICES[self.course_status][1]
 
-    @property
-    def course_id_prefix(self):
-        return f"{self.sis_import_prefix}-{self.term_id}"
+    def course_id(self, ordinal):
+        return f"{self.blueprint_course_id}-{self.term_id}-{ordinal}"
 
     def get_membership_for_course(self):
         if self.membership_type == self.MEMBERSHIP_TITLE_VI:
@@ -67,17 +65,15 @@ class TrainingCourse(models.Model):
         raise ValueError("Invalid membership type")
 
     def get_all_course_sis_import_ids(self):
-        return [
-            f"{self.course_id_prefix}-{i}" for i in range(self.course_count)]
+        return [f"{self.course_id(i)}" for i in range(self.course_count)]
 
     def get_course_id_for_member(self, integration_id):
-        return (f"{self.course_id_prefix}-"
-                f"{self.course_copy_for_member(integration_id)}")
+        return self.course_id(self.course_ordinal_for_member(integration_id))
 
-    def course_copy_for_member(self, integration_id):
+    def course_ordinal_for_member(self, integration_id):
         """
-        Which of the self.course_count courses to use for
-        member with integration_id
+        Which of the self.course_count courses the
+        member with integration_id is enrolled
         """
         return int(integration_id) % self.course_count
 
@@ -90,7 +86,6 @@ class TrainingCourse(models.Model):
                 self.membership_type][1],
             "course_status": self.course_status,
             "course_status_name": self.course_status_name,
-            "sis_import_prefix": self.sis_import_prefix,
             "course_count": self.course_count,
             "section_count": self.section_count,
             "creation_date": localtime(self.creation_date).isoformat() if (

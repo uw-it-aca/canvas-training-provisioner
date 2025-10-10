@@ -17,8 +17,8 @@ class TrainingCourseModelTest(TestCase):
         course = TrainingCourse.objects.get(pk=1)
 
         course_id_list = course.get_all_course_sis_import_ids()
-        self.assertEqual(course_id_list[0], 'TEST_COURSE-2025-2026-0')
-        self.assertEqual(course_id_list[1], 'TEST_COURSE-2025-2026-1')
+        self.assertEqual(course_id_list[0], 'BLUEPRINT_123-2025-2026-0')
+        self.assertEqual(course_id_list[1], 'BLUEPRINT_123-2025-2026-1')
 
         members = course.get_membership_for_course()
         self.assertEqual(len(members), 2)

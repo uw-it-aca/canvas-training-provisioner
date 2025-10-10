@@ -8,7 +8,6 @@
         "account_id": "TRAINING_COURSES",
         "membership_type": 0,
         "course_status": 0,
-        "sis_import_prefix": "TEST_COURSE",
         "is_provisioned": true,
         "course_count": 2,
         "section_count": 0,
