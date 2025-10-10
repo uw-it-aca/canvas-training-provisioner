@@ -4,3 +4,7 @@
 
 class MissingImportPathException(Exception):
     pass
+
+
+class EnrollmentCourseMismatch(Exception):
+    pass

@@ -33,8 +33,7 @@ class TrainingCourse(models.Model):
         (COURSE_STATUS_PUBLISHED, 'published'),
     )
 
-    blueprint_course_id = models.CharField(
-        max_length=80, null=True, db_index=True)
+    blueprint_canvas_course_id = models.IntegerField()
     term_id = models.CharField(max_length=30, db_index=True)
     account_id = models.CharField(max_length=80)
     membership_type = models.SmallIntegerField(
@@ -50,6 +49,10 @@ class TrainingCourse(models.Model):
     deleted_date = models.DateTimeField(null=True)
 
     objects = TrainingCourseManager()
+
+    @property
+    def blueprint_course_id(self):
+        return f"BLUEPRINT_{self.blueprint_canvas_course_id}"
 
     @property
     def course_status_name(self):
@@ -103,6 +106,7 @@ class TrainingCourse(models.Model):
 
     def json_data(self):
         return {
+            "blueprint_canvas_course_id": self.blueprint_canvas_course_id,
             "blueprint_course_id": self.blueprint_course_id,
             "term_id": self.term_id,
             "account_id": self.account_id,
@@ -123,4 +127,4 @@ class TrainingCourse(models.Model):
 
     class Meta:
         db_table = 'training_course'
-        unique_together = ('blueprint_course_id', 'term_id')
+        unique_together = ('blueprint_canvas_course_id', 'term_id')

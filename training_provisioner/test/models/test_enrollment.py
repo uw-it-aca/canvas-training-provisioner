@@ -4,6 +4,7 @@
 from django.test import TestCase
 from training_provisioner.models import (
     TrainingCourse, Course, Enrollment, ImportResource)
+from training_provisioner.exceptions import EnrollmentCourseMismatch
 from mock import patch
 
 
@@ -17,11 +18,24 @@ class EnrollmentModelTest(TestCase):
 
         active_training_courses = TrainingCourse.objects.active_courses()
         for training_course in active_training_courses:
-            Course.objects.add_courses(training_course)
-
-        self.assertEqual(Course.objects.all().count(), 2)
-
-        for training_course in active_training_courses:
             Enrollment.objects.add_enrollments(training_course)
 
         self.assertTrue(Enrollment.objects.all().count(), 2)
+
+        enrollment = Enrollment.objects.get(integration_id='12345678')
+        self.assertEqual(enrollment.course_id, 'BLUEPRINT_123-2025-2026-0')
+
+        enrollment = Enrollment.objects.get(integration_id='12345679')
+        self.assertEqual(enrollment.course_id, 'BLUEPRINT_123-2025-2026-1')
+
+    def test_enrollment_change_error(self):
+        enrollment = Enrollment.objects.create(
+            course_id='BLUEPRINT_123-2025-2026-1',
+            integration_id='12345678',
+            priority=ImportResource.PRIORITY_DEFAULT)
+
+        active_training_courses = TrainingCourse.objects.active_courses()
+
+        with self.assertRaises(EnrollmentCourseMismatch):
+            Enrollment.objects._add_enrollment(
+                '12345678', active_training_courses[0])
