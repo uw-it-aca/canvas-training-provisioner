@@ -4,20 +4,21 @@
 
 from django.core.management.base import BaseCommand
 from training_provisioner.models.training_course import TrainingCourse
-from training_provisioner.models.course import Course
-from training_provisioner.models.enrollment import Enrollment
+from training_provisioner.models import (Term, Course, Section, Enrollment)
 
 
 class Command(BaseCommand):
     help = "Load Canvas Training Courses"
 
+    def add_arguments(self, parser):
+        parser.add_argument('term_id', type=str,
+            help='Load training courses for the given term (e.g., 2024-2025)')
+
     def handle(self, *args, **options):
-        for course in TrainingCourse.objects.active_courses():
-            for course_sis_id in course.get_all_course_sis_import_ids():
-                Course.objects.add_course({
-                })
+        term_id = options.get('term_id')
 
-            for integration_id in course.get_membership_for_course():
-                Enrollment.objects.add_enrollment({
-                })
-
+        for training_course in TrainingCourse.objects.active_courses():
+            Term.objects.add_term(training_course.term_id)
+            Course.objects.add_courses(training_course)
+            Section.objects.add_sections(training_course)
+            Enrollment.objects.add_enrollments(training_course)

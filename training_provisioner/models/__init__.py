@@ -4,5 +4,6 @@
 from .canvas_import import ImportResource, Import
 from .term import Term
 from .course import Course
+from .section import Section
 from .enrollment import Enrollment
 from .training_course import TrainingCourse

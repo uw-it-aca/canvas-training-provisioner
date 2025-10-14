@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from django.db import models
-from training_provisioner.models.enrollment import Enrollment
 from training_provisioner.dao.membership import get_title_vi_membership
 from django.utils.timezone import localtime
 import json
@@ -102,6 +101,9 @@ class TrainingCourse(models.Model):
             self.section_count) else None
 
     def _hash(self, integration_id):
+        """
+        integration_ids are UW Student numbers. no complex hash req'd
+        """
         return int(integration_id)
 
     def json_data(self):
