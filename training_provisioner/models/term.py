@@ -20,7 +20,6 @@ class TermManager(models.Manager):
         term, _ = Term.objects.get_or_create(term_id=term_id)
 
     def _valid_term(self, term_id):
-        import pdb; pdb.set_trace()
         return re.match(r'^20\d{2}\-20\d{2}$', term_id) is not None
 
     def queued(self, queue_id):

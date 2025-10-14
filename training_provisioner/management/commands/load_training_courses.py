@@ -3,8 +3,8 @@
 
 
 from django.core.management.base import BaseCommand
-from training_provisioner.models.training_course import TrainingCourse
-from training_provisioner.models import (Term, Course, Section, Enrollment)
+from training_provisioner.models import (
+    TrainingCourse,Term, Course, Section, Enrollment)
 
 
 class Command(BaseCommand):

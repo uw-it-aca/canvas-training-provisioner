@@ -10,12 +10,12 @@ import json
 
 class SectionManager(models.Manager):
     def add_sections(self, training_course):
-        for section_id in training_course.course_import_ids:
-            section, _ = Course.objects.get_or_create(
-                course_id=course_id, defaults={
-                    'training_course': training_course,
-                    'priority': ImportResource.PRIORITY_DEFAULT
-                })
+        for course_id in training_course.course_import_ids:
+            for section_id in training_course.section_import_ids:
+                section, _ = Section.objects.get_or_create(
+                    section_id=section_id, course_id=course_id, defaults={
+                        'priority': ImportResource.PRIORITY_DEFAULT
+                    })
 
     def queue_by_priority(self, priority, term=None):
         kwargs = {
@@ -44,11 +44,11 @@ class SectionManager(models.Manager):
             queue_id=queue_id)
 
     def dequeue(self, sis_import):
-        Course.objects.dequeue(sis_import)
+        Section.objects.dequeue(sis_import)
         if sis_import.is_imported():
             # Decrement the priority
             super(SectionManager, self).get_queryset().filter(
-                queue_id=sis_import.pk, priority__gt=Course.PRIORITY_NONE
+                queue_id=sis_import.pk, priority__gt=Section.PRIORITY_NONE
             ).update(
                 queue_id=None, priority=F('priority') - 1)
         else:

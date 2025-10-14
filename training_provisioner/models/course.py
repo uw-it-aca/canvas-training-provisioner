@@ -100,7 +100,7 @@ class Course(ImportResource):
 
     def json_data(self):
         return {
-            "training_course": self.training_course,
+            "training_course": self.training_course.json_data(),
             "course_id": self.course_id,
             "term_id": self.term_id,
             "status": self.status,
