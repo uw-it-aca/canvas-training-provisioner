@@ -13,14 +13,23 @@ logger = getLogger(__name__)
 
 
 class TermManager(models.Manager):
-    def add_term(self, term_id):
-        if not self._valid_term(term_id):
-            raise ValueError(f"Invalid term_id: {term_id}")
+    def add_term(self, training_course):
+        if not self._valid_term(training_course.term_id):
+            raise ValueError(f"Invalid term_id: {training_course.term_id}")
 
-        term, _ = Term.objects.get_or_create(term_id=term_id)
+        term, _ = Term.objects.get_or_create(
+            term_id=training_course.term_id)
+        return term
 
     def _valid_term(self, term_id):
-        return re.match(r'^20\d{2}\-20\d{2}$', term_id) is not None
+        """
+        Valid term_id format: AY20xx-20yy
+        """
+        match = re.match(r'^AY20(\d{2})\-20(\d{2})$', term_id)
+        if match and int(match.group(2)) == int(match.group(1)) + 1:
+            return True
+
+        return False
 
     def queued(self, queue_id):
         return super().get_queryset().filter(queue_id=queue_id)

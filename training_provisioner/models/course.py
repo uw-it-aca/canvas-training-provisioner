@@ -10,6 +10,7 @@ import json
 
 class CourseManager(models.Manager):
     def add_courses(self, training_course):
+        courses = []
         for course_id in training_course.course_import_ids:
             course, _ = Course.objects.get_or_create(
                 course_id=course_id, defaults={
@@ -17,11 +18,14 @@ class CourseManager(models.Manager):
                     'priority': ImportResource.PRIORITY_DEFAULT
                 })
 
+            courses.append(course)
+
+        return courses
+
     def get_courses_by_priority(self, priority):
         return self.filter(priority=priority, deleted_date__isnull=True)
 
-    def queue_by_priority(self, priority, term=None):
-        filter_limit = settings.SIS_IMPORT_LIMIT['course']['default']
+    def queue_by_priority(self, priority):
         kwargs = {
             'priority': priority,
             'queue_id__isnull': True,
@@ -30,7 +34,7 @@ class CourseManager(models.Manager):
 
         pks = super().get_queryset().filter(**kwargs).order_by(
             F('provisioned_date').asc(nulls_first=True)
-        ).values_list('pk', flat=True)[:filter_limit]
+        ).values_list('pk', flat=True)
 
         if not len(pks):
             raise EmptyQueueException()

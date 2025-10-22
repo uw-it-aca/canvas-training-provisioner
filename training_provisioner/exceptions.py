@@ -8,3 +8,12 @@ class MissingImportPathException(Exception):
 
 class EnrollmentCourseMismatch(Exception):
     pass
+
+
+class EmptyQueueException(Exception):
+    pass
+
+
+class MissingImportPathException(Exception):
+    pass
+

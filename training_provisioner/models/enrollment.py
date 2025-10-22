@@ -14,35 +14,60 @@ logger = logging.getLogger(__name__)
 
 class EnrollmentManager(models.Manager):
     def add_enrollments(self, training_course):
-        for netid in training_course.get_membership_for_course():
+        enrollments = []
+        enrolled_netids = set(self.filter(
+            course_id__startswith=training_course.course_id_prefix
+        ).values_list('integration_id', flat=True))
+
+        membership = training_course.get_membership_for_course()
+        for netid in membership:
             try:
-                self._add_enrollment(netid, training_course)
+                enrollment = self._add_enrollment(netid, training_course)
+                enrollments.append(enrollment)
+                enrolled_netids.discard(netid)
             except EnrollmentCourseMismatch as ex:
                 logger.error(ex)
+
+        # cull dropped members
+        now = localtime()
+        for dropped_netid in enrolled_netids:
+            try:
+                enrollment = Enrollment.objects.get(
+                    integration_id=dropped_netid,
+                    course_id__startswith=training_course.course_id_prefix)
+                enrollment.deleted_date = now
+                enrollment.priority = ImportResource.PRIORITY_DEFAULT
+                enrollment.save()
+                enrollments.append(enrollment)
+            except Enrollment.DoesNotExist:
+                pass
+
+        return enrollments
 
     def _add_enrollment(self, netid, training_course):
         try:
             course_id = training_course.get_course_id_for_member(netid)
             section_id = training_course.get_section_id_for_member(netid)
-
             enrollment = Enrollment.objects.get(
                 integration_id=netid,
-                course_id__startswith=training_course.blueprint_course_id)
+                course_id__startswith=training_course.course_id_prefix)
 
             if enrollment.course_id != course_id or (
                     enrollment.section_id != section_id):
                 raise EnrollmentCourseMismatch(
                     f"Enrollement for {netid} in "
-                    f"{training_course.blueprint_course_id} "
+                    f"{training_course.course_id_prefix} "
                     f"changed from course {enrollment.course_id} "
                     f"to {course_id}, section {enrollment.section_id} "
                     f"to {section_id}: LEAVING UNTOUCHED")
 
         except Enrollment.DoesNotExist:
-            Enrollment.objects.create(
+            enrollment = Enrollment.objects.create(
                 integration_id=netid, course_id=course_id,
                 section_id=section_id,
                 priority=ImportResource.PRIORITY_DEFAULT)
+
+        return enrollment
 
     def queued(self, queue_id):
         return super(EnrollmentManager, self).get_queryset().filter(
