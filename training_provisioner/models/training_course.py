@@ -40,7 +40,7 @@ class TrainingCourse(models.Model):
         (COURSE_STATUS_PUBLISHED, 'published'),
     )
 
-    blueprint_canvas_course_id = models.IntegerField(db_index=True)
+    blueprint_course_id = models.CharField(max_length=100)
     term_id = models.CharField(max_length=30, db_index=True)
     account_id = models.CharField(max_length=80)
     membership_type = models.SmallIntegerField(
@@ -58,10 +58,6 @@ class TrainingCourse(models.Model):
     objects = TrainingCourseManager()
 
     @property
-    def blueprint_course_id(self):
-        return f"BLUEPRINT_{self.blueprint_canvas_course_id}"
-
-    @property
     def course_status_name(self):
         return self.COURSE_STATUS_CHOICES[self.course_status][1]
 
@@ -73,18 +69,9 @@ class TrainingCourse(models.Model):
     def course_import_ids(self):
         return [f"{self.course_id(i)}" for i in range(self.course_count)]
 
-    @property
-    def section_import_ids(self):
-        return [f"{self.course_id(i)}" for i in range(self.section_count)]
-
     def course_id(self, index):
         ordinal = index + 1
         return f"{self.course_id_prefix}{ordinal}"
-
-    def section_id(self, course_ordinal, index):
-        ordinal = index + 1
-        return (f"{self.course_id_prefix}"
-                f"{course_ordinal}-{ordinal}-")
 
     def get_membership_for_course(self):
         if self.membership_type == self.MEMBERSHIP_TITLE_VI:
@@ -93,28 +80,14 @@ class TrainingCourse(models.Model):
         raise ValueError("Invalid membership type")
 
     def get_course_id_for_member(self, integration_id):
-        return self.course_id(self.course_ordinal_for_member(integration_id))
+        return self.course_id(self._course_index_for_member(integration_id))
 
-    def course_ordinal_for_member(self, integration_id):
+    def _course_index_for_member(self, integration_id):
         """
         Which of the self.course_count courses the
         member with integration_id is enrolled
         """
-        return (self._hash(integration_id) % self.course_count) + 1
-
-    def section_ordinal_for_member(self, integration_id):
-        """
-        Which of the self.section_count courses the
-        member with integration_id is enrolled
-        """
-        return self._hash(integration_id) % self.section_count if (
-            self.section_count) else None
-
-    def get_section_id_for_member(self, integration_id):
-        return self.section_id(
-            self.course_ordinal_for_member(integration_id),
-            self.section_ordinal_for_member(integration_id)) if (
-                self.section_count) else None
+        return self._hash(integration_id) % self.course_count
 
     def _hash(self, integration_id):
         """
@@ -124,7 +97,6 @@ class TrainingCourse(models.Model):
 
     def json_data(self):
         return {
-            "blueprint_canvas_course_id": self.blueprint_canvas_course_id,
             "blueprint_course_id": self.blueprint_course_id,
             "term_id": self.term_id,
             "account_id": self.account_id,
@@ -145,4 +117,4 @@ class TrainingCourse(models.Model):
 
     class Meta:
         db_table = 'training_course'
-        unique_together = ('blueprint_canvas_course_id', 'term_id')
+        unique_together = ('blueprint_course_id', 'term_id')

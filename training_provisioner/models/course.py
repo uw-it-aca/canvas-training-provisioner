@@ -6,19 +6,27 @@ from training_provisioner.models.training_course import TrainingCourse
 from training_provisioner.models import Import, ImportResource
 from django.utils.timezone import localtime
 import json
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 class CourseManager(models.Manager):
     def add_courses(self, training_course):
         courses = []
-        for course_id in training_course.course_import_ids:
+        for i, course_id in enumerate(training_course.course_import_ids):
             course, _ = Course.objects.get_or_create(
                 course_id=course_id, defaults={
                     'training_course': training_course,
+                    'course_ordinal': i + 1,
                     'priority': ImportResource.PRIORITY_DEFAULT
                 })
 
             courses.append(course)
+
+            if _:
+                logger.info(f"added course {course.course_id}")
 
         return courses
 
@@ -78,8 +86,8 @@ class Course(ImportResource):
     """
     training_course = models.ForeignKey(
         TrainingCourse, on_delete=models.CASCADE)
-    course_id = models.CharField(
-        max_length=80, null=True, db_index=True, unique=True)
+    course_id = models.CharField(max_length=80, db_index=True, unique=True)
+    course_ordinal = models.IntegerField()
     created_date = models.DateTimeField(auto_now=True)
     provisioned_date = models.DateTimeField(null=True)
     deleted_date = models.DateTimeField(null=True)
@@ -101,6 +109,39 @@ class Course(ImportResource):
     @property
     def account_id(self):
         return self.training_course.account_id
+
+    @property
+    def section_import_ids(self):
+        return [f"{self._section_id(self.course_ordinal, i)}" for i in range(
+            self.training_course.section_count)]
+
+    def get_section_id_for_member(self, integration_id):
+        section_index = self._section_index_for_member(integration_id)
+        return self._section_id(section_index) if section_index else None
+
+    def _section_index_for_member(self, integration_id):
+        """
+        Which of the self.section_count courses the
+        member with integration_id is enrolled
+        """
+        return (self._hash(integration_id) %
+                self.training_course.section_count) if (
+                    self.training_course.section_count) else None
+
+    def _section_id(self, index):
+        ordinal = index + 1
+        return (f"{self.course_id}-{ordinal}-")
+
+    def _hash(self, integration_id):
+        """
+        Simple hash function for distributing members across sections
+        NOTE: must be distinct from _hash function in TrainingCourse
+        """
+        hash_value = 0
+        for char in str(integration_id):
+            hash_value += ord(char)
+
+        return hash_value
 
     def json_data(self):
         return {

@@ -3,19 +3,40 @@
 
 from django.db import models
 from training_provisioner.models.training_course import TrainingCourse
-from training_provisioner.models import Import, ImportResource
+from training_provisioner.models import Course, Import, ImportResource
+from training_provisioner.exceptions import MissingCourseException
 from django.utils.timezone import localtime
 import json
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 class SectionManager(models.Manager):
     def add_sections(self, training_course):
+        sections = []
         for course_id in training_course.course_import_ids:
-            for section_id in training_course.section_import_ids:
+            try:
+                course = Course.objects.get(
+                    training_course=training_course,
+                    course_id=course_id)
+            except Course.DoesNotExist:
+                raise MissingCourseException(
+                    f"Course {course_id} model not found for ")
+
+            for section_id in course.section_import_ids:
                 section, _ = Section.objects.get_or_create(
-                    section_id=section_id, course_id=course_id, defaults={
+                    section_id=section_id, course=course, defaults={
                         'priority': ImportResource.PRIORITY_DEFAULT
                     })
+
+                sections.append(section)
+
+                if _:
+                    logger.info(f"added section {section.section_id}")
+
+        return sections
 
     def queue_by_priority(self, priority, term=None):
         kwargs = {
@@ -68,8 +89,9 @@ class Section(ImportResource):
     """
     Provisioned Training Course Section
     """
-    section_id = models.CharField(max_length=80)
-    course_id = models.CharField(max_length=80)
+    course = models.ForeignKey(
+        TrainingCourse, on_delete=models.CASCADE)
+    section_id = models.CharField(max_length=80, null=True)
     created_date = models.DateTimeField(auto_now=True)
     provisioned_date = models.DateTimeField(null=True)
     deleted_date = models.DateTimeField(null=True)
@@ -95,7 +117,7 @@ class Section(ImportResource):
     def json_data(self):
         return {
             "section_id": self.section_id,
-            "course_id": self.course_id,
+            "course": self.course.json_data(),
             "created_date": localtime(self.deleted_date).isoformat(),
             "provisioned_date": localtime(self.provisioned_date).isoformat() if (
                 self.provisioned_date is not None) else None,

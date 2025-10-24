@@ -2,6 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
+class MissingCourseException(Exception):
+    pass
+
+
+class MissingSectionException(Exception):
+    pass
+
+
 class MissingImportPathException(Exception):
     pass
 

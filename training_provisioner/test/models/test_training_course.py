@@ -26,5 +26,5 @@ class TrainingCourseModelTest(TrainingCourseTestCase):
             member_course = course.get_course_id_for_member(member)
             self.assertEqual(
                 member_course,
-                f"{course.course_id_prefix}"
-                f"{self.member_course_number(member)}")
+                (f"{course.course_id_prefix}"
+                 f"{self.member_course_number(member)}"))

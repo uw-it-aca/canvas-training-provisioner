@@ -30,25 +30,3 @@ class Builder(object):
         for item in self.items:
             self._process(item)
         return self._write()
-
-    def add_student_enrollment_data(self, registration):
-        """
-        Generates one student enrollment for the passed registration.
-        """
-        if self.add_user_data_for_person(registration.person):
-            self.data.add(EnrollmentCSV(registration=registration))
-
-    def add_group_enrollment_data(self, login_id, section_id, role, status):
-        """
-        Generates one enrollment for the passed group member.
-        """
-        try:
-            person = get_person_by_netid(login_id)
-            if self.add_user_data_for_person(person):
-                self.data.add(EnrollmentCSV(
-                    section_id=section_id, person=person, role=role,
-                    status=status))
-
-        except InvalidLoginIdException as ex:
-            self.logger.info("Skip group member {}: {}".format(
-                login_id, ex))

@@ -2,8 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from django.db import models
-from training_provisioner.models import Import, ImportResource
-from training_provisioner.exceptions import EnrollmentCourseMismatch
+from training_provisioner.models import (
+    Course, Section, Import, ImportResource)
+from training_provisioner.exceptions import (
+    MissingCourseException, MissingSectionException, EnrollmentCourseMismatch)
 from django.utils.timezone import localtime
 import logging
 import json
@@ -16,7 +18,7 @@ class EnrollmentManager(models.Manager):
     def add_enrollments(self, training_course):
         enrollments = []
         enrolled_netids = set(self.filter(
-            course_id__startswith=training_course.course_id_prefix
+            course__training_course=training_course
         ).values_list('integration_id', flat=True))
 
         membership = training_course.get_membership_for_course()
@@ -34,11 +36,16 @@ class EnrollmentManager(models.Manager):
             try:
                 enrollment = Enrollment.objects.get(
                     integration_id=dropped_netid,
-                    course_id__startswith=training_course.course_id_prefix)
+                    course__training_course=training_course)
                 enrollment.deleted_date = now
                 enrollment.priority = ImportResource.PRIORITY_DEFAULT
                 enrollment.save()
                 enrollments.append(enrollment)
+                drop_id = enrollment.section.section_id if (
+                    enrollment.section) else enrollment.course.course_id
+                logger.info(f"delete enrollment {dropped_netid} "
+                            f"from {drop_id}")
+
             except Enrollment.DoesNotExist:
                 pass
 
@@ -47,25 +54,42 @@ class EnrollmentManager(models.Manager):
     def _add_enrollment(self, netid, training_course):
         try:
             course_id = training_course.get_course_id_for_member(netid)
-            section_id = training_course.get_section_id_for_member(netid)
+            course = Course.objects.get(course_id=course_id)
+            section_id = course.get_section_id_for_member(netid)
+            section = Section.objects.get(section_id=section_id) if (
+                section_id is not None) else None
+
             enrollment = Enrollment.objects.get(
-                integration_id=netid,
-                course_id__startswith=training_course.course_id_prefix)
+                integration_id=netid, course__training_course=training_course)
 
-            if enrollment.course_id != course_id or (
-                    enrollment.section_id != section_id):
+            if not (enrollment.course == course
+                        and enrollment.section == section):
+                orig_course_id = enrollment.course.course_id
+                orig_section_id = enrollment.section.section_id if (
+                    enrollment.section) else "None"
                 raise EnrollmentCourseMismatch(
-                    f"Enrollement for {netid} in "
-                    f"{training_course.course_id_prefix} "
-                    f"changed from course {enrollment.course_id} "
-                    f"to {course_id}, section {enrollment.section_id} "
-                    f"to {section_id}: LEAVING UNTOUCHED")
+                    f"Enrollment for {netid} in "
+                    f"{training_course.course_id_prefix} CHANGED: course from "
+                    f"{orig_course_id} to {course_id}, section from "
+                    f"{orig_section_id} to {section_id}: enrollment unchanged")
 
+        except Course.DoesNotExist:
+            raise MissingCourseException(
+                f"Enrollment for {netid} in "
+                f"{training_course.course_id_prefix} missing course model "
+                f"for: {course_id}")
+        except Section.DoesNotExist:
+            raise MissingSectionException(
+                f"Enrollment for {netid} in "
+                f"{training_course.course_id_prefix} missing section model "
+                f"for: {section_id}")
         except Enrollment.DoesNotExist:
             enrollment = Enrollment.objects.create(
-                integration_id=netid, course_id=course_id,
-                section_id=section_id,
+                integration_id=netid, course=course, section=section,
                 priority=ImportResource.PRIORITY_DEFAULT)
+            logger.info(f"create enrollment {netid} in "
+                         f"{section_id if section_id else course_id}")
+
 
         return enrollment
 
@@ -98,9 +122,9 @@ class Enrollment(ImportResource):
     """
     Represents a user's Course enrollment event to be processed.
     """
+    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    section = models.ForeignKey(Section, null=True, on_delete=models.CASCADE)
     integration_id = models.CharField(max_length=8, db_index=True)
-    course_id = models.CharField(max_length=80, db_index=True)
-    section_id = models.CharField(max_length=80, null=True)
     added_date = models.DateTimeField(auto_now=True)
     enrollment_date = models.DateTimeField(null=True)
     deleted_date = models.DateTimeField(null=True)
@@ -113,9 +137,9 @@ class Enrollment(ImportResource):
     
     def json_data(self):
         return {
+            'course': self.course.json_data() if self.course else None,
+            'section': self.section.json_data() if self.section else None,
             'integration_id': self.integration_id,
-            'course_id': self.course_id,
-            'section_id': self.section_id,
             'added_date': localtime(self.added_date).isoformat(),
             'enrollment_date': localtime(self.enrollment_date).isoformat() if (
                 self.enrollment_date) else None,
@@ -128,4 +152,4 @@ class Enrollment(ImportResource):
 
     class Meta:
         db_table = 'enrollment'
-        unique_together = ('integration_id', 'course_id', 'section_id')
+        unique_together = ('integration_id', 'course', 'section')
