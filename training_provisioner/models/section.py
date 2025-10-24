@@ -25,9 +25,10 @@ class SectionManager(models.Manager):
                 raise MissingCourseException(
                     f"Course {course_id} model not found for ")
 
-            for section_id in course.section_import_ids:
+            for i, section_id in enumerate(course.section_import_ids):
                 section, _ = Section.objects.get_or_create(
-                    section_id=section_id, course=course, defaults={
+                    section_id=section_id, section_oridinal=i + 1,
+                    course=course, defaults={
                         'priority': ImportResource.PRIORITY_DEFAULT
                     })
 
@@ -92,6 +93,7 @@ class Section(ImportResource):
     course = models.ForeignKey(
         TrainingCourse, on_delete=models.CASCADE)
     section_id = models.CharField(max_length=80, null=True)
+    section_oridinal = models.IntegerField()
     created_date = models.DateTimeField(auto_now=True)
     provisioned_date = models.DateTimeField(null=True)
     deleted_date = models.DateTimeField(null=True)

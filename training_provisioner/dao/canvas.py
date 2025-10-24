@@ -23,8 +23,9 @@ import json
 logger = getLogger(__name__)
 
 
-def valid_canvas_id(canvas_id):
-    return Canvas().valid_canvas_id(canvas_id)
+def course_names_from_course_sis_id(course_sis_id):
+    course = get_course_by_id(course_sis_id)
+    return course.name, course.short_name
 
 
 def get_account_by_id(account_id):

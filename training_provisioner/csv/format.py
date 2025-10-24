@@ -147,18 +147,17 @@ class SectionCSV(CSVFormat):
 
 class EnrollmentCSV(CSVFormat):
     """
-    course_id, root_account, user_id, role, role_id, section_id,
-    status (active|inactive|deleted|completed), associated_user_id
+    course_id, user_integration_id, role, role_id, section_id, status
     """
     def __init__(self, **kwargs):
-        course_id = None if (
+        course_id = '' if (
             kwargs.get('section_id')) else kwargs.get('course_id')
         section_id = kwargs.get('section_id')
-        person = registration.person
-        role = 'student'
-        status = 'active'
+        user_integration_id = kwargs.get('integration_id')
+        role = kwargs.get('role', 'student')
+        status = kwargs.get('status', 'active')
 
-        self.key = "{}:{}:{}:{}:{}".format(
-            course_id, section_id, user_id, role, status)
-        self.data = [course_id, None, user_id, role, None, section_id, status,
-                     None]
+        self.key = (f"{course_id}:{section_id}:{user_integration_id}:"
+                    f"{role}:{status}")
+        self.data = [course_id, None, user_integration_id, role, None,
+                     section_id, status, None]
