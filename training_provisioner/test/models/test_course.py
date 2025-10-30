@@ -11,9 +11,15 @@ class CourseModelTest(TrainingCourseTestCase):
         for training_course in TrainingCourse.objects.active_courses():
             Course.objects.add_courses(training_course)
 
-        courses = Course.objects.all()
-        self.assertEqual(courses.count(), 8)
+            courses = Course.objects.all()
+            self.assertEqual(courses.count(), training_course.course_count)
 
-        for course in courses:
-            self.assertIsNotNone(course.training_course)
-            self.assertEqual(course.priority, ImportResource.PRIORITY_DEFAULT)
+            self.assertEqual(
+                len(set(courses.values_list(
+                    'training_course__blueprint_course_id', flat=True))), 1)
+
+            self.assertEqual(courses.filter(
+                priority=ImportResource.PRIORITY_DEFAULT).count(),
+                             training_course.course_count)
+
+            Course.objects.all().delete()
