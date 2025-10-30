@@ -39,8 +39,7 @@ class EnrollmentModelTest(TrainingCourseTestCase):
         enrollment_three = Enrollment.objects.get(pk=3)
         enrollment = Enrollment.objects.create(
             course=enrollment_three.course,
-            integration_id=integration_id_to_delete,
-            priority=ImportResource.PRIORITY_DEFAULT)
+            integration_id=integration_id_to_delete)
 
         Enrollment.objects.add_enrollments(self.training_course)
 

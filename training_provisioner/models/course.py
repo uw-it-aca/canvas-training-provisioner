@@ -2,8 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from django.db import models
+from django.db.models import F
 from training_provisioner.models.training_course import TrainingCourse
 from training_provisioner.models import Import, ImportResource
+from training_provisioner.exceptions import EmptyQueueException
 from django.utils.timezone import localtime
 import json
 import logging
@@ -20,7 +22,7 @@ class CourseManager(models.Manager):
                 course_id=course_id, defaults={
                     'training_course': training_course,
                     'course_ordinal': i + 1,
-                    'priority': ImportResource.PRIORITY_DEFAULT
+                    'priority': Course.PRIORITY_DEFAULT
                 })
 
             courses.append(course)
@@ -60,7 +62,6 @@ class CourseManager(models.Manager):
             queue_id=queue_id)
 
     def dequeue(self, sis_import):
-        Course.objects.dequeue(sis_import)
         if sis_import.is_imported():
             # Decrement the priority
             super(CourseManager, self).get_queryset().filter(
@@ -69,15 +70,6 @@ class CourseManager(models.Manager):
                 queue_id=None, priority=F('priority') - 1)
         else:
             self.queued(sis_import.pk).update(queue_id=None)
-
-        self.purge_expired()
-
-    def purge_expired(self):
-        retention_dt = datetime.now(timezone.utc) - timedelta(
-            days=getattr(settings, 'COURSE_MODEL_RETENTION_DAYS', 365))
-        return super(CourseManager, self).get_queryset().filter(
-            priority=Course.PRIORITY_NONE,
-            last_modified__lt=retention_dt).delete()
 
 
 class Course(ImportResource):
@@ -90,6 +82,8 @@ class Course(ImportResource):
     course_ordinal = models.IntegerField()
     created_date = models.DateTimeField(auto_now=True)
     provisioned_date = models.DateTimeField(null=True)
+    provisioned_error = models.BooleanField(null=True)
+    provisioned_status = models.CharField(max_length=512, null=True)
     deleted_date = models.DateTimeField(null=True)
     priority = models.SmallIntegerField(
         default=ImportResource.PRIORITY_NONE,
@@ -112,12 +106,13 @@ class Course(ImportResource):
 
     @property
     def section_import_ids(self):
-        return [f"{self._section_id(self.course_ordinal, i)}" for i in range(
+        return [f"{self._section_id(i)}" for i in range(
             self.training_course.section_count)]
 
     def get_section_id_for_member(self, integration_id):
         section_index = self._section_index_for_member(integration_id)
-        return self._section_id(section_index) if section_index else None
+        return self._section_id(section_index) if (
+            section_index is not None) else None
 
     def _section_index_for_member(self, integration_id):
         """
@@ -155,7 +150,7 @@ class Course(ImportResource):
                 self.provisioned_date is not None) else None,
             "deleted_date": localtime(self.deleted_date).isoformat() if (
                 self.deleted_date is not None) else None,
-            "priority": self.PRIORITY_CHOICES[self.priority][1],
+            "priority": Course.PRIORITY_CHOICES[self.priority][1],
             "queue_id": self.queue_id,
         }
 

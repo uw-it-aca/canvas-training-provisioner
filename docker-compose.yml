@@ -5,6 +5,8 @@ services:
     environment:
       ENV: localdev
       PORT: 8000
+      UW_CANVAS_ROOT_ACCOUNT: "canvas.uw.edu"
+      UW_TRAINING_ROOT_ACCOUNT: "studenttraining.uw.edu"
     restart: always
     container_name: app-training-provisioner
     build:

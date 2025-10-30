@@ -24,4 +24,3 @@ class EmptyQueueException(Exception):
 
 class MissingImportPathException(Exception):
     pass
-

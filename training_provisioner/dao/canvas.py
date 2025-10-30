@@ -23,11 +23,6 @@ import json
 logger = getLogger(__name__)
 
 
-def course_names_from_course_sis_id(course_sis_id):
-    course = get_course_by_id(course_sis_id)
-    return course.name, course.short_name
-
-
 def get_account_by_id(account_id):
     return Accounts().get_account(account_id)
 

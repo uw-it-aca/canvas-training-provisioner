@@ -31,13 +31,6 @@ class TermManager(models.Manager):
 
         return False
 
-    def queued(self, queue_id):
-        return super().get_queryset().filter(queue_id=queue_id)
-
-    def dequeue(self, sis_import):
-        kwargs = {'queue_id': None}
-        self.queued(sis_import.pk).update(**kwargs)
-
 
 class Term(ImportResource):
     """
@@ -45,7 +38,6 @@ class Term(ImportResource):
     """
     term_id = models.CharField(max_length=20, unique=True)
     added_date = models.DateTimeField(auto_now_add=True)
-    queue_id = models.CharField(max_length=30, null=True)
 
     objects = TermManager()
 

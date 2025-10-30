@@ -38,7 +38,6 @@ class EnrollmentManager(models.Manager):
                     integration_id=dropped_netid,
                     course__training_course=training_course)
                 enrollment.deleted_date = now
-                enrollment.priority = ImportResource.PRIORITY_DEFAULT
                 enrollment.save()
                 enrollments.append(enrollment)
                 drop_id = enrollment.section.section_id if (
@@ -85,40 +84,15 @@ class EnrollmentManager(models.Manager):
                 f"for: {section_id}")
         except Enrollment.DoesNotExist:
             enrollment = Enrollment.objects.create(
-                integration_id=netid, course=course, section=section,
-                priority=ImportResource.PRIORITY_DEFAULT)
+                integration_id=netid, course=course, section=section)
             logger.info(f"create enrollment {netid} in "
                          f"{section_id if section_id else course_id}")
 
 
         return enrollment
 
-    def queued(self, queue_id):
-        return super(EnrollmentManager, self).get_queryset().filter(
-            queue_id=queue_id)
 
-    def dequeue(self, sis_import):
-        Enrollment.objects.dequeue(sis_import)
-        if sis_import.is_imported():
-            # Decrement the priority
-            super(EnrollmentManager, self).get_queryset().filter(
-                queue_id=sis_import.pk, priority__gt=Enrollment.PRIORITY_NONE
-            ).update(
-                queue_id=None, priority=F('priority') - 1)
-        else:
-            self.queued(sis_import.pk).update(queue_id=None)
-
-        self.purge_expired()
-
-    def purge_expired(self):
-        retention_dt = datetime.now(timezone.utc) - timedelta(
-            days=getattr(settings, 'ENROLLMENT_MODEL_RETENTION_DAYS', 365))
-        return super(EnrollmentManager, self).get_queryset().filter(
-            priority=Enrollment.PRIORITY_NONE,
-            last_modified__lt=retention_dt).delete()
-
-
-class Enrollment(ImportResource):
+class Enrollment(models.Model):
     """
     Represents a user's Course enrollment event to be processed.
     """
@@ -128,10 +102,6 @@ class Enrollment(ImportResource):
     added_date = models.DateTimeField(auto_now=True)
     enrollment_date = models.DateTimeField(null=True)
     deleted_date = models.DateTimeField(null=True)
-    priority = models.SmallIntegerField(
-        default=ImportResource.PRIORITY_DEFAULT,
-        choices=ImportResource.PRIORITY_CHOICES)
-    queue_id = models.CharField(max_length=30, null=True)
 
     objects = EnrollmentManager()
     

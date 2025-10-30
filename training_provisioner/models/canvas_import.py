@@ -182,7 +182,7 @@ class Import(models.Model):
 
     def delete(self, *args, **kwargs):
         self.dequeue_dependent_models()
-        if not self.is_completed():
+        if self.canvas_id and not self.is_completed():
             try:
                 delete_sis_import(self.canvas_id)
             except DataFailureException as ex:
@@ -192,6 +192,27 @@ class Import(models.Model):
     def _process_warnings(self, warnings):
         return [w for w in warnings if not re.search(
             '-(MSIS|THLEAD)-(480|550|601)-', w[-1])]
+
+    def json_data(self):
+        return {
+            "queue_id": self.pk,
+            "type": self.csv_type,
+            "csv_path": self.csv_path,
+            "type_name": self.type_name,
+            "added_date": localtime(self.added_date).isoformat(),
+            "priority": ImportResource.PRIORITY_CHOICES[self.priority][1],
+            "override_sis_stickiness": self.override_sis_stickiness,
+            "csv_errors": self.csv_errors,
+            "post_status": self.post_status,
+            "canvas_state": self.canvas_state,
+            "canvas_progress": self.canvas_progress,
+            "canvas_warnings": self.canvas_warnings,
+            "canvas_errors": self.canvas_errors,
+            "canvas_id": self.canvas_id,
+        }
+
+    def __str__(self):
+        return json.dumps(self.json_data())
 
     class Meta:
         db_table = 'import'

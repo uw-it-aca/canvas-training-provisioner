@@ -27,11 +27,8 @@ class SectionManager(models.Manager):
 
             for i, section_id in enumerate(course.section_import_ids):
                 section, _ = Section.objects.get_or_create(
-                    section_id=section_id, section_oridinal=i + 1,
-                    course=course, defaults={
-                        'priority': ImportResource.PRIORITY_DEFAULT
-                    })
-
+                    course=course, section_id=section_id,
+                    section_ordinal=i + 1)
                 sections.append(section)
 
                 if _:
@@ -39,68 +36,16 @@ class SectionManager(models.Manager):
 
         return sections
 
-    def queue_by_priority(self, priority, term=None):
-        kwargs = {
-            'priority': priority,
-            'queue_id__isnull': True,
-            'provisioned_error__isnull': True
-        }
 
-        pks = super().get_queryset().filter(**kwargs).order_by(
-            F('provisioned_date').asc(nulls_first=True)
-        ).values_list('pk', flat=True)
-
-        if not len(pks):
-            raise EmptyQueueException()
-
-        imp = Import(priority=priority, csv_type='course')
-        imp.save()
-
-        super().get_queryset().filter(pk__in=list(pks)).update(
-            queue_id=imp.pk)
-
-        return imp
-
-    def queued(self, queue_id):
-        return super(SectionManager, self).get_queryset().filter(
-            queue_id=queue_id)
-
-    def dequeue(self, sis_import):
-        Section.objects.dequeue(sis_import)
-        if sis_import.is_imported():
-            # Decrement the priority
-            super(SectionManager, self).get_queryset().filter(
-                queue_id=sis_import.pk, priority__gt=Section.PRIORITY_NONE
-            ).update(
-                queue_id=None, priority=F('priority') - 1)
-        else:
-            self.queued(sis_import.pk).update(queue_id=None)
-
-        self.purge_expired()
-
-    def purge_expired(self):
-        retention_dt = datetime.now(timezone.utc) - timedelta(
-            days=getattr(settings, 'COURSE_MODEL_RETENTION_DAYS', 365))
-        return super(SectionManager, self).get_queryset().filter(
-            priority=Section.PRIORITY_NONE,
-            last_modified__lt=retention_dt).delete()
-
-
-class Section(ImportResource):
+class Section(models.Model):
     """
     Provisioned Training Course Section
     """
-    course = models.ForeignKey(
-        TrainingCourse, on_delete=models.CASCADE)
+    course = models.ForeignKey(Course, on_delete=models.CASCADE)
     section_id = models.CharField(max_length=80, null=True)
-    section_oridinal = models.IntegerField()
+    section_ordinal = models.IntegerField()
     created_date = models.DateTimeField(auto_now=True)
-    provisioned_date = models.DateTimeField(null=True)
     deleted_date = models.DateTimeField(null=True)
-    priority = models.SmallIntegerField(
-        default=ImportResource.PRIORITY_NONE,
-        choices=ImportResource.PRIORITY_CHOICES)
-    queue_id = models.CharField(max_length=30, null=True)
 
     objects = SectionManager()
 
@@ -119,14 +64,11 @@ class Section(ImportResource):
     def json_data(self):
         return {
             "section_id": self.section_id,
+            "section_ordinal": self.section_ordinal,
             "course": self.course.json_data(),
             "created_date": localtime(self.deleted_date).isoformat(),
-            "provisioned_date": localtime(self.provisioned_date).isoformat() if (
-                self.provisioned_date is not None) else None,
             "deleted_date": localtime(self.deleted_date).isoformat() if (
-                self.deleted_date is not None) else None,
-            "priority": self.PRIORITY_CHOICES[self.priority][1],
-            "queue_id": self.queue_id,
+                self.deleted_date is not None) else None
         }
 
     def __str__(self):

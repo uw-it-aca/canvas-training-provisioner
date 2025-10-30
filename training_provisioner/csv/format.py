@@ -11,6 +11,7 @@
 #     is_active_section, section_short_name, section_long_name)
 # from sis_provisioner.dao.user import (
 #     user_sis_id, user_integration_id, user_email, user_fullname)
+from django.conf import settings
 import csv
 import io
 
@@ -74,8 +75,9 @@ class SectionHeader(CSVFormat):
 
 class EnrollmentHeader(CSVFormat):
     def __init__(self):
-        self.data = ['course_id', 'user_integration_id', 'role',
-                     'role_id', 'section_id', 'status']
+        self.data = ['course_id', 'section_id',
+                     'root_account', 'user_integration_id',
+                      'role','role_id', 'status']
 
 
 # CSV Data classes
@@ -150,7 +152,7 @@ class EnrollmentCSV(CSVFormat):
     course_id, user_integration_id, role, role_id, section_id, status
     """
     def __init__(self, **kwargs):
-        course_id = '' if (
+        course_id = None if (
             kwargs.get('section_id')) else kwargs.get('course_id')
         section_id = kwargs.get('section_id')
         user_integration_id = kwargs.get('integration_id')
@@ -159,5 +161,6 @@ class EnrollmentCSV(CSVFormat):
 
         self.key = (f"{course_id}:{section_id}:{user_integration_id}:"
                     f"{role}:{status}")
-        self.data = [course_id, None, user_integration_id, role, None,
-                     section_id, status, None]
+        self.data = [course_id, section_id,
+                     settings.UW_CANVAS_ROOT_ACCOUNT, user_integration_id,
+                     role, None, status]
