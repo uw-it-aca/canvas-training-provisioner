@@ -14,7 +14,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
-            'priority', type=int, default=Course.PRIORITY_DEFAULT,
+            'priority', type=int, nargs='?', default=Course.PRIORITY_DEFAULT,
             choices=[Course.PRIORITY_DEFAULT,
                      Course.PRIORITY_IMMEDIATE],
             help='Import courses with priority <priority>')

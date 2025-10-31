@@ -4,7 +4,7 @@
 
 from django.core.management.base import BaseCommand
 from django.core.management import call_command
-from training_provisioner.models import TrainingCourse
+from training_provisioner.models.training_course import TrainingCourse
 
 
 class Command(BaseCommand):

@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from django.db import models
-from training_provisioner.models import (
-    Course, Section, Import, ImportResource)
+from training_provisioner.models import Import, ImportResource
+from training_provisioner.models.course import Course
+from training_provisioner.models.section import Section
 from training_provisioner.exceptions import (
     MissingCourseException, MissingSectionException, EnrollmentCourseMismatch)
 from django.utils.timezone import localtime
@@ -38,6 +39,7 @@ class EnrollmentManager(models.Manager):
                     integration_id=dropped_netid,
                     course__training_course=training_course)
                 enrollment.deleted_date = now
+                enrollment.priority = ImportResource.PRIORITY_DEFAULT
                 enrollment.save()
                 enrollments.append(enrollment)
                 drop_id = enrollment.section.section_id if (
@@ -57,6 +59,7 @@ class EnrollmentManager(models.Manager):
             section_id = course.get_section_id_for_member(netid)
             section = Section.objects.get(section_id=section_id) if (
                 section_id is not None) else None
+            priority = Enrollment.PRIORITY_DEFAULT
 
             enrollment = Enrollment.objects.get(
                 integration_id=netid, course__training_course=training_course)
@@ -88,20 +91,50 @@ class EnrollmentManager(models.Manager):
             logger.info(f"create enrollment {netid} in "
                          f"{section_id if section_id else course_id}")
 
-
         return enrollment
 
+    def course_imports(self, course):
+        pks = super(EnrollmentManager, self).get_queryset().filter(
+            course=course.id,
+            priority__gt=ImportResource.PRIORITY_NONE,
+            queue_id__isnull=True
+        ).values_list('pk', flat=True)
 
-class Enrollment(models.Model):
+        super(EnrollmentManager, self).get_queryset().filter(
+            pk__in=list(pks)).update(queue_id=course.queue_id)
+
+        return super(EnrollmentManager, self).get_queryset().filter(
+            pk__in=list(pks))
+
+    def queued(self, queue_id):
+        return super(EnrollmentManager, self).get_queryset().filter(
+            queue_id=queue_id)
+
+    def dequeue(self, sis_import):
+        if sis_import.is_imported():
+            # Decrement the priority
+            super(EnrollmentManager, self).get_queryset().filter(
+                queue_id=sis_import.pk, priority__gt=Enrollment.PRIORITY_NONE
+            ).update(
+                queue_id=None, priority=F('priority') - 1)
+        else:
+            self.queued(sis_import.pk).update(queue_id=None)
+
+
+class Enrollment(ImportResource):
     """
     Represents a user's Course enrollment event to be processed.
     """
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     section = models.ForeignKey(Section, null=True, on_delete=models.CASCADE)
     integration_id = models.CharField(max_length=8, db_index=True)
-    added_date = models.DateTimeField(auto_now=True)
-    enrollment_date = models.DateTimeField(null=True)
+    created_date = models.DateTimeField(auto_now=True)
+    provisioned_date = models.DateTimeField(null=True)
     deleted_date = models.DateTimeField(null=True)
+    priority = models.SmallIntegerField(
+        default=ImportResource.PRIORITY_DEFAULT,
+        choices=ImportResource.PRIORITY_CHOICES)
+    queue_id = models.CharField(max_length=30, null=True)
 
     objects = EnrollmentManager()
     
@@ -110,9 +143,9 @@ class Enrollment(models.Model):
             'course': self.course.json_data() if self.course else None,
             'section': self.section.json_data() if self.section else None,
             'integration_id': self.integration_id,
-            'added_date': localtime(self.added_date).isoformat(),
-            'enrollment_date': localtime(self.enrollment_date).isoformat() if (
-                self.enrollment_date) else None,
+            'created_date': localtime(self.created_date).isoformat(),
+            'provisioned_date': localtime(self.provisioned_date).isoformat() if (
+                self.provisioned_date) else None,
             'deleted_date': localtime(self.deleted_date).isoformat() if (
                 self.deleted_date) else None,
         }

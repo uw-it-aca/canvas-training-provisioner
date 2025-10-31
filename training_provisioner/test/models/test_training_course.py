@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from training_provisioner.test import TrainingCourseTestCase
-from training_provisioner.models import TrainingCourse
+from training_provisioner.models.training_course import TrainingCourse
 from mock import patch
 
 

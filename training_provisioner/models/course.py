@@ -86,7 +86,7 @@ class Course(ImportResource):
     provisioned_status = models.CharField(max_length=512, null=True)
     deleted_date = models.DateTimeField(null=True)
     priority = models.SmallIntegerField(
-        default=ImportResource.PRIORITY_NONE,
+        default=ImportResource.PRIORITY_DEFAULT,
         choices=ImportResource.PRIORITY_CHOICES)
     queue_id = models.CharField(max_length=30, null=True)
 

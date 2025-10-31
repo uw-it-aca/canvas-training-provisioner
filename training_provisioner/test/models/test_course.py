@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from training_provisioner.test import TrainingCourseTestCase
-from training_provisioner.models import (
-    TrainingCourse, Course, ImportResource)
+from training_provisioner.models import ImportResource
+from training_provisioner.models.training_course import TrainingCourse
+from training_provisioner.models.course import Course
 
 
 class CourseModelTest(TrainingCourseTestCase):

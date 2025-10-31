@@ -107,8 +107,8 @@ class Import(models.Model):
             raise MissingImportPathException()
 
         try:
-            sis_import = sis_import_by_path(self.csv_path,
-                                            self.override_sis_stickiness)
+            sis_import = sis_import_by_path(
+                self.csv_path, self.override_sis_stickiness)
             self.post_status = 200
             self.canvas_id = sis_import.import_id
             self.canvas_state = sis_import.workflow_state

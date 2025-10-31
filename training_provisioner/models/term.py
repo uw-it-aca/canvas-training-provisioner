@@ -38,6 +38,9 @@ class Term(ImportResource):
     """
     term_id = models.CharField(max_length=20, unique=True)
     added_date = models.DateTimeField(auto_now_add=True)
+    priority = models.SmallIntegerField(
+        default=ImportResource.PRIORITY_DEFAULT,
+        choices=ImportResource.PRIORITY_CHOICES)
 
     objects = TermManager()
 

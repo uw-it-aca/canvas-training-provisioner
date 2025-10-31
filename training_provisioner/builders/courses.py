@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from training_provisioner.models import Section, Enrollment
+from training_provisioner.models.section import Section
+from training_provisioner.models.enrollment import Enrollment
 from training_provisioner.builders import Builder
 from training_provisioner.csv.format import (
     CourseCSV, SectionCSV, TermCSV, EnrollmentCSV)
@@ -21,15 +22,14 @@ class CourseBuilder(Builder):
         if not self.data.add(CourseCSV(**course_data)):
             return
 
-        for section in Section.objects.filter(course=course.id):
+        for section in Section.objects.course_imports(course):
             section_data = self._section_data(section)
             if not self.data.add(SectionCSV(**section_data)):
                 return
 
-        for enrollment in Enrollment.objects.filter(course=course.id):
+        for enrollment in Enrollment.objects.course_imports(course):
             enrollment_data = self._enrollment_data(enrollment)
-            if not self.data.add(EnrollmentCSV(**enrollment_data)):
-                return
+            self.data.add(EnrollmentCSV(**enrollment_data))
 
     def _course_data(self, course):
         canvas_course = get_course_by_sis_id(

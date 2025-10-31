@@ -3,8 +3,11 @@
 
 
 from django.core.management.base import BaseCommand
-from training_provisioner.models import (
-    TrainingCourse, Term, Course, Section, Enrollment)
+from training_provisioner.models.training_course import TrainingCourse
+from training_provisioner.models.term import Term
+from training_provisioner.models.course import Course
+from training_provisioner.models.section import Section
+from training_provisioner.models.enrollment import Enrollment
 import logging
 
 
@@ -20,7 +23,6 @@ class Command(BaseCommand):
                 "Loading training course "
                 f"{training_course.blueprint_course_id} "
                 f"for term {training_course.term_id}")
-
 
             logger.setLevel(logging.DEBUG)
 
