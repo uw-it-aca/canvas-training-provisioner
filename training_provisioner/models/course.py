@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class CourseManager(models.Manager):
-    def add_courses(self, training_course):
+    def add_models_for_training_course(self, training_course):
         courses = []
         for i, course_id in enumerate(training_course.course_import_ids):
             course, _ = Course.objects.get_or_create(
@@ -146,8 +146,9 @@ class Course(ImportResource):
             "status": self.status,
             "account_id": self.account_id,
             "created_date": localtime(self.deleted_date).isoformat(),
-            "provisioned_date": localtime(self.provisioned_date).isoformat() if (
-                self.provisioned_date is not None) else None,
+            "provisioned_date": localtime(
+                self.provisioned_date).isoformat() if (
+                    self.provisioned_date is not None) else None,
             "deleted_date": localtime(self.deleted_date).isoformat() if (
                 self.deleted_date is not None) else None,
             "priority": Course.PRIORITY_CHOICES[self.priority][1],

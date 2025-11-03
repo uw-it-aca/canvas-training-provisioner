@@ -4,6 +4,7 @@
 from django.db import models
 from training_provisioner.dao.membership import get_title_vi_membership
 from django.utils.timezone import localtime
+from importlib import import_module
 import json
 
 
@@ -27,6 +28,12 @@ class TrainingCourse(models.Model):
     MEMBERSHIP_TITLE_VI = 0
     MEMBERSHIP_CHOICES = (
         (MEMBERSHIP_TITLE_VI, 'title_vi'),
+    )
+
+    COURSE_MODELS = (
+        'training_provisioner.models.course.Course',
+        'training_provisioner.models.section.Section',
+        'training_provisioner.models.enrollment.Enrollment'
     )
 
     COURSE_STATUS_ACTIVE = 0
@@ -94,6 +101,13 @@ class TrainingCourse(models.Model):
         integration_ids are UW Student numbers. no complex hash req'd
         """
         return int(integration_id)
+
+    def load_courses_and_enrollments(self):
+        for model_cls in self.COURSE_MODELS:
+            modname, _, clsname = model_cls.rpartition('.')
+            module = import_module(modname)
+            model = getattr(module, clsname)
+            model.objects.add_models_for_training_course(self)
 
     def json_data(self):
         return {

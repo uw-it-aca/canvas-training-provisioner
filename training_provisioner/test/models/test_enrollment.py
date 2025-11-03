@@ -20,9 +20,9 @@ class EnrollmentModelTest(TrainingCourseTestCase):
         """
         mock_membership.return_value = self.get_membership()
         self.training_course = TrainingCourse.objects.active_courses()[0]
-        Course.objects.add_courses(self.training_course)
-        Section.objects.add_sections(self.training_course)
-        Enrollment.objects.add_enrollments(self.training_course)
+        Course.objects.add_models_for_training_course(self.training_course)
+        Section.objects.add_models_for_training_course(self.training_course)
+        Enrollment.objects.add_models_for_training_course(self.training_course)
 
     def test_enrollment_model(self):
         self.assertTrue(
@@ -44,7 +44,7 @@ class EnrollmentModelTest(TrainingCourseTestCase):
             course=enrollment_three.course,
             integration_id=integration_id_to_delete)
 
-        Enrollment.objects.add_enrollments(self.training_course)
+        Enrollment.objects.add_models_for_training_course(self.training_course)
 
         enrollment = Enrollment.objects.get(
             integration_id=integration_id_to_delete)

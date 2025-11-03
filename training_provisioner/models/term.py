@@ -13,7 +13,7 @@ logger = getLogger(__name__)
 
 
 class TermManager(models.Manager):
-    def add_term(self, training_course):
+    def add_models_for_training_course(self, training_course):
         if not self._valid_term(training_course.term_id):
             raise ValueError(f"Invalid term_id: {training_course.term_id}")
 

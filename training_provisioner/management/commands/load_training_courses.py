@@ -26,7 +26,4 @@ class Command(BaseCommand):
 
             logger.setLevel(logging.DEBUG)
 
-            Term.objects.add_term(training_course)
-            Course.objects.add_courses(training_course)
-            Section.objects.add_sections(training_course)
-            Enrollment.objects.add_enrollments(training_course)
+            training_course.load_courses_and_enrollments()

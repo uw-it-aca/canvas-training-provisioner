@@ -10,7 +10,7 @@ from training_provisioner.models.course import Course
 class CourseModelTest(TrainingCourseTestCase):
     def test_course_model(self):
         for training_course in TrainingCourse.objects.active_courses():
-            Course.objects.add_courses(training_course)
+            Course.objects.add_models_for_training_course(training_course)
 
             courses = Course.objects.all()
             self.assertEqual(courses.count(), training_course.course_count)

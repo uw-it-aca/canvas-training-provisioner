@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class EnrollmentManager(models.Manager):
-    def add_enrollments(self, training_course):
+    def add_models_for_training_course(self, training_course):
         enrollments = []
         enrolled_netids = set(self.filter(
             course__training_course=training_course
@@ -65,7 +65,7 @@ class EnrollmentManager(models.Manager):
                 integration_id=netid, course__training_course=training_course)
 
             if not (enrollment.course == course
-                        and enrollment.section == section):
+                    and enrollment.section == section):
                 orig_course_id = enrollment.course.course_id
                 orig_section_id = enrollment.section.section_id if (
                     enrollment.section) else "None"
@@ -89,7 +89,7 @@ class EnrollmentManager(models.Manager):
             enrollment = Enrollment.objects.create(
                 integration_id=netid, course=course, section=section)
             logger.info(f"create enrollment {netid} in "
-                         f"{section_id if section_id else course_id}")
+                        f"{section_id if section_id else course_id}")
 
         return enrollment
 
@@ -137,15 +137,16 @@ class Enrollment(ImportResource):
     queue_id = models.CharField(max_length=30, null=True)
 
     objects = EnrollmentManager()
-    
+
     def json_data(self):
         return {
             'course': self.course.json_data() if self.course else None,
             'section': self.section.json_data() if self.section else None,
             'integration_id': self.integration_id,
             'created_date': localtime(self.created_date).isoformat(),
-            'provisioned_date': localtime(self.provisioned_date).isoformat() if (
-                self.provisioned_date) else None,
+            'provisioned_date': localtime(
+                self.provisioned_date).isoformat() if (
+                    self.provisioned_date) else None,
             'deleted_date': localtime(self.deleted_date).isoformat() if (
                 self.deleted_date) else None,
         }

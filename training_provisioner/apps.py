@@ -10,5 +10,6 @@ class TrainingProvisionerConfig(AppConfig):
     name = 'training_provisioner'
 
     def ready(self):
-        mock_training_data = os.path.join(os.path.dirname(__file__), "resources")
+        mock_training_data = os.path.join(
+            os.path.dirname(__file__), "resources")
         MockDAO.register_mock_path(mock_training_data)

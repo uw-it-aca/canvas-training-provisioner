@@ -8,7 +8,7 @@ from uw_canvas import Canvas_DAO
 
 def is_using_file_dao():
     return Canvas_DAO().get_implementation().is_mock()
-    
+
 
 def mock_file_path(filename):
     current_dir = os.path.dirname(os.path.realpath(__file__))

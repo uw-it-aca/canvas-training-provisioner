@@ -26,7 +26,7 @@ class CourseBuilderTest(TrainingCourseTestCase):
     )
     def test_course_builder_with_data(self):
         for training_course in TrainingCourse.objects.active_courses():
-            Course.objects.add_courses(training_course)
+            Course.objects.add_models_for_training_course(training_course)
 
         courses = Course.objects.all()
         builder = CourseBuilder(courses)

@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class SectionManager(models.Manager):
-    def add_sections(self, training_course):
+    def add_models_for_training_course(self, training_course):
         sections = []
         for course_id in training_course.course_import_ids:
             try:
@@ -30,8 +30,7 @@ class SectionManager(models.Manager):
                 section, _ = Section.objects.get_or_create(
                     course=course, section_id=section_id, defaults={
                         'priority': Section.PRIORITY_DEFAULT,
-                        'section_ordinal': i + 1
-                })
+                        'section_ordinal': i + 1})
                 sections.append(section)
 
                 if _:
@@ -102,8 +101,9 @@ class Section(ImportResource):
             "section_ordinal": self.section_ordinal,
             "course": self.course.json_data(),
             "created_date": localtime(self.deleted_date).isoformat(),
-            "provisioned_date": localtime(self.provisioned_date).isoformat() if (
-                self.provisioned_date is not None) else None,
+            "provisioned_date": localtime(
+                self.provisioned_date).isoformat() if (
+                    self.provisioned_date is not None) else None,
             "deleted_date": localtime(self.deleted_date).isoformat() if (
                 self.deleted_date is not None) else None
         }

@@ -1,16 +1,6 @@
 # Copyright 2025 UW-IT, University of Washington
 # SPDX-License-Identifier: Apache-2.0
 
-
-#from training_provisioner.dao.account import account_name
-
-
-# from sis_provisioner.dao.term import (
-#     term_sis_id, term_name, term_start_date, term_end_date, course_end_date)
-# from sis_provisioner.dao.course import (
-#     is_active_section, section_short_name, section_long_name)
-# from sis_provisioner.dao.user import (
-#     user_sis_id, user_integration_id, user_email, user_fullname)
 from django.conf import settings
 import csv
 import io
@@ -77,7 +67,7 @@ class EnrollmentHeader(CSVFormat):
     def __init__(self):
         self.data = ['course_id', 'section_id',
                      'root_account', 'user_integration_id',
-                      'role','role_id', 'status']
+                     'role', 'role_id', 'status']
 
 
 # CSV Data classes

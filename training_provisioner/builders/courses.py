@@ -38,7 +38,7 @@ class CourseBuilder(Builder):
             'course_id': course.course_id,
             'short_name': canvas_course.name,
             'long_name': canvas_course.name,
-            'blueprint_course_id': \
+            'blueprint_course_id':
                 course.training_course.blueprint_course_id,
             'term_id': course.training_course.term_id,
             'account_id': course.training_course.account_id

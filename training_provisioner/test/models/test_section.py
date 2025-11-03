@@ -5,18 +5,18 @@ from training_provisioner.test import TrainingCourseTestCase
 from training_provisioner.models.training_course import TrainingCourse
 from training_provisioner.models.course import Course
 from training_provisioner.models.section import Section
-    
+
 
 class SectionModelTest(TrainingCourseTestCase):
     def test_course_model(self):
         for training_course in TrainingCourse.objects.active_courses():
-            Course.objects.add_courses(training_course)
-            Section.objects.add_sections(training_course)
+            Course.objects.add_models_for_training_course(training_course)
+            Section.objects.add_models_for_training_course(training_course)
 
             sections = Section.objects.all()
 
             self.assertEqual(
-                sections.count(), 
+                sections.count(),
                 (training_course.course_count *
                  training_course.section_count))
 
@@ -27,4 +27,3 @@ class SectionModelTest(TrainingCourseTestCase):
 
             Course.objects.all().delete()
             Section.objects.all().delete()
-
