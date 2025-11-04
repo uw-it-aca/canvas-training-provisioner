@@ -4,6 +4,7 @@ import os
 
 INSTALLED_APPS += [
     'training_provisioner.apps.TrainingProvisionerConfig',
+    'rest_framework.authtoken',
 ]
 
 UW_CANVAS_ROOT_ACCOUNT = os.getenv('UW_CANVAS_ROOT_ACCOUNT')
@@ -38,6 +39,3 @@ CACHES = {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache"
     }
 }
-
-TRAINING_IMPORT_ROOT_ACCOUNT_ID = 'uwtraining'
-TRAINING_IMPORT_USERS = 'u_acadev_canvas_training-import-users'
