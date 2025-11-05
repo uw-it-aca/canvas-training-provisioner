@@ -86,8 +86,7 @@ class TrainingCourse(models.Model):
 
     def get_membership_for_course(self):
         try:
-            fff = self.get_membership_type_display()
-            return eval(f"{fff}()")
+            return eval(f"{self.get_membership_type_display()}()")
         except Exception as ex:
             raise ValueError(f"Invalid membership: {ex}")
 
