@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from django.db import models
-from training_provisioner.dao.membership import get_title_vi_membership
+from training_provisioner.dao.membership import (
+    get_test_membership, get_title_vi_membership)
 from django.utils.timezone import localtime
 from importlib import import_module
 import json
@@ -25,9 +26,11 @@ class TrainingCourse(models.Model):
     """
     Represents a training course and necessary provisioning parameters.
     """
-    MEMBERSHIP_TITLE_VI = 0
+    MEMBERSHIP_TEST_MEMBERS = 0
+    MEMBERSHIP_TITLE_VI = 1
     MEMBERSHIP_CHOICES = (
-        (MEMBERSHIP_TITLE_VI, 'title_vi'),
+        (MEMBERSHIP_TEST_MEMBERS, 'get_test_membership'),
+        (MEMBERSHIP_TITLE_VI, 'get_title_vi_membership'),
     )
 
     COURSE_MODELS = (
@@ -69,6 +72,7 @@ class TrainingCourse(models.Model):
         return self.COURSE_STATUS_CHOICES[self.course_status][1]
 
     @property
+
     def course_id_prefix(self):
         return f"{self.term_id}-{self.blueprint_course_id}-"
 
@@ -81,10 +85,11 @@ class TrainingCourse(models.Model):
         return f"{self.course_id_prefix}{ordinal}"
 
     def get_membership_for_course(self):
-        if self.membership_type == self.MEMBERSHIP_TITLE_VI:
-            return get_title_vi_membership()
-
-        raise ValueError("Invalid membership type")
+        try:
+            fff = self.get_membership_type_display()
+            return eval(f"{fff}()")
+        except Exception as ex:
+            raise ValueError(f"Invalid membership: {ex}")
 
     def get_course_id_for_member(self, integration_id):
         return self.course_id(self._course_index_for_member(integration_id))
