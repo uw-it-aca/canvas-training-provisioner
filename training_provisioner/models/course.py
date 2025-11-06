@@ -124,8 +124,17 @@ class Course(ImportResource):
                     self.training_course.section_count) else None
 
     def _section_id(self, index):
-        ordinal = index + 1
-        return (f"{self.course_id}-{ordinal}-")
+        return (f"{self.course_id}-{self._section_letter(index)}-")
+
+    def _section_letter(self, index):
+        return self._index_to_section(index, '')
+
+    def _index_to_section(self, index, section):
+        if index < 26:
+            return section + chr(ord('A') + index)
+
+        section += chr(ord('A') + (int(index / 26) - 1))
+        return _index_to_section((index - 26) % 26, section)
 
     def _hash(self, integration_id):
         """

@@ -17,7 +17,7 @@ class TrainingCourseModelTest(TrainingCourseTestCase):
         course_id_list = course.course_import_ids
         for i in range(course.course_count):
             self.assertEqual(
-                course_id_list[i], f"{course.course_id_prefix}{i+1}")
+                course_id_list[i], f"{course.course_id_prefix}{(i+1):03d}")
 
         members = course.get_membership_for_course()
         self.assertEqual(len(members), len(mock_membership.return_value))
@@ -27,4 +27,4 @@ class TrainingCourseModelTest(TrainingCourseTestCase):
             self.assertEqual(
                 member_course,
                 (f"{course.course_id_prefix}"
-                 f"{self.member_course_number(member)}"))
+                 f"{self.member_course_number(member):03d}"))

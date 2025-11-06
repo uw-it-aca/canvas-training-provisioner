@@ -34,7 +34,7 @@ class EnrollmentModelTest(TrainingCourseTestCase):
             self.assertEqual(
                 enrollment.course.course_id,
                 (f"{self.training_course.course_id_prefix}"
-                 f"{self.member_course_number(member)}"))
+                 f"{self.member_course_number(member):03d}"))
 
     def test_enrollment_model_delete(self):
         integration_id_to_delete = '5432199'

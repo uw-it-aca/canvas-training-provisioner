@@ -82,7 +82,7 @@ class TrainingCourse(models.Model):
 
     def course_id(self, index):
         ordinal = index + 1
-        return f"{self.course_id_prefix}{ordinal}"
+        return f"{self.course_id_prefix}{ordinal:03d}"
 
     def get_membership_for_course(self):
         try:
