@@ -8,14 +8,20 @@ from training_provisioner.dao.canvas import (
     sis_import_by_path, get_sis_import_status, delete_sis_import)
 from training_provisioner.exceptions import MissingImportPathException
 from restclients_core.exceptions import DataFailureException
+from prometheus_client import Counter
 from importlib import import_module
 from datetime import datetime, timezone
 from logging import getLogger
 import json
 import re
 
-
 logger = getLogger(__name__)
+warning_counter = Counter('studenttraining_import_warnings_total',
+                          ('Total number of warnings encountered '
+                           'during SIS imports'))
+error_counter = Counter('studenttraining_import_errors_total',
+                        ('Total number of errors encountered '
+                         'during SIS imports'))
 
 
 class ImportResource(models.Model):
@@ -134,9 +140,11 @@ class Import(models.Model):
 
             warnings = self._process_warnings(sis_import.processing_warnings)
             if len(warnings):
+                warning_counter.inc(len(warnings))
                 self.canvas_warnings = json.dumps(warnings)
 
             if len(sis_import.processing_errors):
+                error_counter.inc(len(sis_import.processing_errors))
                 self.canvas_errors = json.dumps(sis_import.processing_errors)
 
         except (DataFailureException, KeyError) as ex:

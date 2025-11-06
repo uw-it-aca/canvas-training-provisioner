@@ -18,18 +18,21 @@ class CourseBuilder(Builder):
         if course.queue_id is not None:
             self.queue_id = course.queue_id
 
-        course_data = self._course_data(course)
-        if not self.data.add(CourseCSV(**course_data)):
-            return
-
-        for section in Section.objects.course_imports(course):
-            section_data = self._section_data(section)
-            if not self.data.add(SectionCSV(**section_data)):
+        if course.provisioned_date is None:
+            course_data = self._course_data(course)
+            if not self.data.add(CourseCSV(**course_data)):
                 return
 
+        for section in Section.objects.course_imports(course):
+            if section.provisioned_date is None:
+                section_data = self._section_data(section)
+                if not self.data.add(SectionCSV(**section_data)):
+                    return
+
         for enrollment in Enrollment.objects.course_imports(course):
-            enrollment_data = self._enrollment_data(enrollment)
-            self.data.add(EnrollmentCSV(**enrollment_data))
+            if enrollment.provisioned_date is None:
+                enrollment_data = self._enrollment_data(enrollment)
+                self.data.add(EnrollmentCSV(**enrollment_data))
 
     def _course_data(self, course):
         canvas_course = get_course_by_sis_id(

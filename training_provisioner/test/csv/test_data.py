@@ -6,7 +6,6 @@ from training_provisioner.test import TrainingCourseTestCase
 from training_provisioner.builders.courses import CourseBuilder
 from training_provisioner.csv.format import *
 from training_provisioner.csv.data import Collector
-from django.test import override_settings
 import mock
 
 
