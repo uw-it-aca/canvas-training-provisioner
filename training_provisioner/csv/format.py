@@ -152,5 +152,5 @@ class EnrollmentCSV(CSVFormat):
         self.key = (f"{course_id}:{section_id}:{user_integration_id}:"
                     f"{role}:{status}")
         self.data = [course_id, section_id,
-                     settings.UW_CANVAS_ROOT_ACCOUNT, user_integration_id,
+                     settings.CANVAS_ACCOUNT_DOMAIN, user_integration_id,
                      role, None, status]

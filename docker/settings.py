@@ -7,8 +7,7 @@ INSTALLED_APPS += [
     'rest_framework.authtoken',
 ]
 
-UW_CANVAS_ROOT_ACCOUNT = os.getenv('UW_CANVAS_ROOT_ACCOUNT')
-UW_TRAINING_ROOT_ACCOUNT = os.getenv('UW_TRAINING_ROOT_ACCOUNT')
+CANVAS_ACCOUNT_DOMAIN = os.getenv('CANVAS_ACCOUNT_DOMAIN')
 
 if os.getenv('ENV', 'localdev') == 'localdev':
     DEBUG = True
