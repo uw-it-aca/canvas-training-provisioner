@@ -45,10 +45,28 @@ class AbstractSAMLAdminModel():
         return is_admin_user(request)
 
 
+class AbstractSAMLReadOnlyAdminModel():
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return is_admin_user(request)
+
+    def has_module_permission(self, request):
+        return is_admin_user(request)
+
+
 class SAMLAdminModel(AbstractSAMLAdminModel, admin.ModelAdmin):
+    pass
+
+
+class SAMLReadOnlyAdminModel(AbstractSAMLReadOnlyAdminModel, admin.ModelAdmin):
     pass
 
 
 admin_site = SAMLAdminSite(name='SAMLAdmin')
 admin_site.register(TrainingCourse, SAMLAdminModel)
-admin_site.register(Import, SAMLAdminModel)
+admin_site.register(Import, SAMLReadOnlyAdminModel)
