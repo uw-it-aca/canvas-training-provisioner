@@ -7,7 +7,6 @@ from training_provisioner.models.enrollment import Enrollment
 from training_provisioner.builders import Builder
 from training_provisioner.csv.format import (
     CourseCSV, SectionCSV, TermCSV, EnrollmentCSV)
-from training_provisioner.dao.canvas import get_course_by_sis_id
 
 
 class CourseBuilder(Builder):
@@ -35,12 +34,10 @@ class CourseBuilder(Builder):
                 self.data.add(EnrollmentCSV(**enrollment_data))
 
     def _course_data(self, course):
-        canvas_course = get_course_by_sis_id(
-            course.training_course.blueprint_course_id)
         return {
             'course_id': course.course_id,
-            'short_name': canvas_course.name,
-            'long_name': canvas_course.name,
+            'short_name': course.training_course.course_name,
+            'long_name': course.training_course.course_name,
             'blueprint_course_id':
                 course.training_course.blueprint_course_id,
             'term_id': course.training_course.term_id,

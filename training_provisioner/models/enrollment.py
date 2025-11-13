@@ -22,7 +22,7 @@ class EnrollmentManager(models.Manager):
             course__training_course=training_course
         ).values_list('integration_id', flat=True))
 
-        membership = training_course.get_membership_for_course()
+        membership = training_course.get_course_membership()
         for netid in membership:
             try:
                 enrollment = self._add_enrollment(netid, training_course)

@@ -6,7 +6,7 @@ from . import is_using_file_dao, mock_file_path
 import json
 
 
-def get_test_membership():
+def title_vi_test_membership(training_course):
     """
     Return list of integration_ids for testing
     """
@@ -17,11 +17,27 @@ def get_test_membership():
     return []
 
 
-def get_title_vi_membership():
+def title_vi_membership(training_course):
     """
     Return list of integration_ids for Title VI members
 
     query PDS or whatever system of record for appropriate list of students
     for Title VI training
     """
+
+    # sniff at training_course course_id or term_id or whatever to
+    # determine appropriate membership
+    return []
+
+
+def title_vi_booster_membership(training_course):
+    """
+    Return list of integration_ids for Title VI members
+
+    query PDS or whatever system of record for appropriate list of students
+    for Title VI training
+    """
+
+    # sniff at training_course course_id or term_id or whatever to
+    # determine appropriate membership
     return []

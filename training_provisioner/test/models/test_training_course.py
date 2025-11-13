@@ -8,7 +8,7 @@ from mock import patch
 
 class TrainingCourseModelTest(TrainingCourseTestCase):
     @patch('training_provisioner.models.'
-           'training_course.get_title_vi_membership')
+           'training_course.TrainingCourse.get_course_membership')
     def test_membership(self, mock_membership):
         mock_membership.return_value = self.get_membership()
 
@@ -19,7 +19,7 @@ class TrainingCourseModelTest(TrainingCourseTestCase):
             self.assertEqual(
                 course_id_list[i], f"{course.course_id_prefix}{(i+1):03d}")
 
-        members = course.get_membership_for_course()
+        members = course.get_course_membership()
         self.assertEqual(len(members), len(mock_membership.return_value))
 
         for i, member in enumerate(members):

@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from django.db import models
-from training_provisioner.dao.membership import (
-    get_test_membership, get_title_vi_membership)
 from django.utils.timezone import localtime
+from training_provisioner.dao.membership import (
+    title_vi_test_membership, title_vi_membership,
+    title_vi_booster_membership)
 from importlib import import_module
 import json
 
@@ -26,11 +27,13 @@ class TrainingCourse(models.Model):
     """
     Represents a training course and necessary provisioning parameters.
     """
-    MEMBERSHIP_TEST_MEMBERS = 0
-    MEMBERSHIP_TITLE_VI = 1
+    TEST_MEMBERS = 0
+    TITLE_VI_MEMBERS = 1
+    TITLE_VI_BOOSTER_MEMBERS = 2
     MEMBERSHIP_CHOICES = (
-        (MEMBERSHIP_TEST_MEMBERS, 'get_test_membership'),
-        (MEMBERSHIP_TITLE_VI, 'get_title_vi_membership'),
+        (TEST_MEMBERS, 'title_vi_test_membership'),
+        (TITLE_VI_MEMBERS, 'title_vi_membership'),
+        (TITLE_VI_BOOSTER_MEMBERS, 'title_vi_booster_membership'),
     )
 
     COURSE_MODELS = (
@@ -50,11 +53,12 @@ class TrainingCourse(models.Model):
         (COURSE_STATUS_PUBLISHED, 'published'),
     )
 
+    course_name = models.CharField(max_length=200)
     blueprint_course_id = models.CharField(max_length=100)
     term_id = models.CharField(max_length=30, db_index=True)
     account_id = models.CharField(max_length=80)
     membership_type = models.SmallIntegerField(
-        default=MEMBERSHIP_TITLE_VI,
+        default=TEST_MEMBERS,
         choices=MEMBERSHIP_CHOICES)
     course_status = models.SmallIntegerField(
         default=COURSE_STATUS_ACTIVE,
@@ -63,7 +67,7 @@ class TrainingCourse(models.Model):
     course_count = models.IntegerField(default=0)
     section_count = models.IntegerField(default=0)
     creation_date = models.DateTimeField(auto_now=True)
-    deleted_date = models.DateTimeField(null=True)
+    deleted_date = models.DateTimeField(null=True, blank=True)
 
     objects = TrainingCourseManager()
 
@@ -84,9 +88,9 @@ class TrainingCourse(models.Model):
         ordinal = index + 1
         return f"{self.course_id_prefix}{ordinal:03d}"
 
-    def get_membership_for_course(self):
+    def get_course_membership(self):
         try:
-            return eval(f"{self.get_membership_type_display()}()")
+            return eval(f"{self.get_membership_type_display()}(self)")
         except Exception as ex:
             raise ValueError(f"Invalid membership: {ex}")
 
@@ -115,6 +119,7 @@ class TrainingCourse(models.Model):
 
     def json_data(self):
         return {
+            "course_name": self.course_name,
             "blueprint_course_id": self.blueprint_course_id,
             "term_id": self.term_id,
             "account_id": self.account_id,
@@ -131,7 +136,8 @@ class TrainingCourse(models.Model):
         }
 
     def __str__(self):
-        return json.dumps(self.json_data())
+        return (f"{self.course_name} "
+                f"({self.blueprint_course_id} - {self.term_id})")
 
     class Meta:
         db_table = 'training_course'

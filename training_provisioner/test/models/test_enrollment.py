@@ -13,7 +13,7 @@ from mock import patch
 
 class EnrollmentModelTest(TrainingCourseTestCase):
     @patch('training_provisioner.models.'
-           'training_course.get_title_vi_membership')
+           'training_course.TrainingCourse.get_course_membership')
     def setUp(self, mock_membership):
         """
         initialize db for mock membership

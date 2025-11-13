@@ -1,0 +1,167 @@
+ingress:
+  enabled: true
+  tls:
+    studenttraining:
+      secretName: test-apps.studenttraining.uw.edu-ingress-cert
+      hosts:
+        - test-apps.studenttraining.uw.edu
+  hosts:
+    studenttraining:
+      host: test-apps.studenttraining.uw.edu
+      paths:
+        - "/"
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+
+lifecycle:
+  enabled: true
+  preStop:
+    enabled: true
+affinity:
+   podsSpanNodes: true
+readiness:
+  enabled: true
+securityPolicy:
+  enabled: false
+
+externalService:
+  enabled: true
+  name: studenttraining-db-service
+  type: ClusterIP
+  serviceAddress: 172.18.1.43
+  servicePort: 5432
+database:
+  engine: postgres
+  name: training_provisioner_test
+  hostname: studenttraining-db-service
+  secretName: test-apps.studenttraining.uw.edu-sql-secrets
+
+repo: studenttraining
+instance: test
+namespace:
+  enabled: true
+
+memcached:
+  enabled: false
+  replicaCount: 1
+  updateStrategy:
+    type: RollingUpdate
+
+gcsCredentials:
+  mounted: true
+  secretName: test-apps.studenttraining.uw.edu-gcs-credentials
+
+cronjob:
+  enabled: false
+  jobs:
+    - name: load-training-courses
+      schedule: "40 2 * * 1-5"
+      command: ["/scripts/management_command.sh"]
+      args: ["load_training_courses"]
+    - name: import-training-courses
+      schedule: "40 3 * * 1-5"
+      command: ["/scripts/management_command.sh"]
+      args: ["import_training_courses"]
+
+daemon:
+  enabled: true
+  daemons:
+    - name: monitor-imports
+      replicaCount: 1
+      command: ["/scripts/management_daemon.sh"]
+      args: ["--delay", "30", "monitor_imports"]
+
+certs:
+  mounted: false
+  certPath: /certs/test-apps.studenttraining.uw.edu-ic.cert
+  keyPath: /certs/test-apps.studenttraining.uw.edu-ic.key
+  secretName: test-apps.studenttraining.uw.edu-ic-certs
+
+environmentVariables:
+  - name: ENV
+    value: test
+
+  - name: STUDENTTRAINING_ACCOUNT_DOMAIN
+    value: uwstudenttraining.test.instructure.com
+  - name: CANVAS_ACCOUNT_DOMAIN
+    value: uw.test.instructure.com
+
+  - name: CANVAS_ENV
+    value: EVAL
+  - name: CANVAS_TIMEOUT
+    value: "20"
+
+  - name: AUTH
+    value: SAML
+  - name: SAML_ENTITY_ID
+    value: https://test-apps.studenttraining.uw.edu/saml
+  - name: CLUSTER_CNAME
+    value: test-apps.studenttraining.uw.edu
+
+externalSecrets:
+  enabled: true
+  secrets:
+    - name: test-apps.studenttraining.uw.edu-shared-secrets
+      externalKey: studenttraining/shared/secrets
+      data:
+        - name: storage-project-id
+          property: storage-project-id
+        - name: studenttraining-account-id
+          property: studenttraining-account-id
+#        - name: studenttraining-api-token
+#          property: studenttraining-api-token
+    - name: test-apps.studenttraining.uw.edu-gcs-credentials
+      externalKey: studenttraining/shared/gcs-credentials
+      data:
+        - name: credentials.json
+          property: credentials.json
+    - name: test-apps.studenttraining.uw.edu-secrets
+      externalKey: studenttraining/test/secrets
+      data:
+        - name: studenttraining-api-token
+          property: studenttraining-api-token
+        - name: django-secret
+          property: django-secret
+        - name: storage-bucket-name
+          property: storage-bucket-name
+    - name: test-apps.studenttraining.uw.edu-sql-secrets
+      externalKey: studenttraining/shared/sql-secrets
+      data:
+        - name: username
+          property: username
+        - name: password
+          property: password
+    - name: test-apps.studenttraining.uw.edu-uw-idp-cert
+      externalKey: idp-cert
+      data:
+        - name: uw-idp-cert
+          property: cert
+environmentVariablesSecrets:
+  djangoSecret:
+    name: DJANGO_SECRET
+    secretName: test-apps.studenttraining.uw.edu-secrets
+    secretKey: django-secret
+  studenttrainingAccountID:
+    name: CANVAS_ACCOUNT_ID
+    secretName: test-apps.studenttraining.uw.edu-shared-secrets
+    secretKey: studenttraining-account-id
+  studenttrainingAPIToken:
+    name: CANVAS_OAUTH_BEARER
+    secretName: test-apps.studenttraining.uw.edu-secrets
+    secretKey: studenttraining-api-token
+  storageBucketName:
+    name: STORAGE_BUCKET_NAME
+    secretName: test-apps.studenttraining.uw.edu-secrets
+    secretKey: storage-bucket-name
+  storageProjectId:
+    name: STORAGE_PROJECT_ID
+    secretName: test-apps.studenttraining.uw.edu-shared-secrets
+    secretKey: storage-project-id
+  samlSPCert:
+    name: SP_CERT
+    secretName: test-apps.studenttraining.uw.edu-ic-certs
+    secretKey: test-apps.studenttraining.uw.edu-ic.cert
+  samlIDPCert:
+    name: IDP_CERT
+    secretName: test-apps.studenttraining.uw.edu-uw-idp-cert
+    secretKey: uw-idp-cert
