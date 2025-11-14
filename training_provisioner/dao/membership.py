@@ -6,7 +6,7 @@ from . import is_using_file_dao, mock_file_path
 import json
 
 
-def title_vi_test_membership(training_course):
+def test_membership(training_course):
     """
     Return list of integration_ids for testing
     """

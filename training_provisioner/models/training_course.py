@@ -4,7 +4,7 @@
 from django.db import models
 from django.utils.timezone import localtime
 from training_provisioner.dao.membership import (
-    title_vi_test_membership, title_vi_membership,
+    test_membership, title_vi_membership,
     title_vi_booster_membership)
 from importlib import import_module
 import json
