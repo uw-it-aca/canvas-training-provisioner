@@ -32,7 +32,7 @@ externalService:
   servicePort: 5432
 database:
   engine: postgres
-  name: training_provisioner_test
+  name: studenttraining_provisioner_test
   hostname: studenttraining-db-service
   secretName: test-apps.studenttraining.uw.edu-sql-secrets
 
