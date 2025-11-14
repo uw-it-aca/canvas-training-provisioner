@@ -31,7 +31,7 @@ class TrainingCourse(models.Model):
     TITLE_VI_MEMBERS = 1
     TITLE_VI_BOOSTER_MEMBERS = 2
     MEMBERSHIP_CHOICES = (
-        (TEST_MEMBERS, 'title_vi_test_membership'),
+        (TEST_MEMBERS, 'test_membership'),
         (TITLE_VI_MEMBERS, 'title_vi_membership'),
         (TITLE_VI_BOOSTER_MEMBERS, 'title_vi_booster_membership'),
     )
