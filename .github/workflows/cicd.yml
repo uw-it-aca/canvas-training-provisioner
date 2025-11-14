@@ -118,7 +118,7 @@ jobs:
           docker run -u root -t
           -v ${PWD}:/coverage
           -e DJANGO_APP="$DJANGO_APP"
-          -e "ENV=localdev" -e "AUTH=SAML_MOCK BLTI_DEV"
+          -e "ENV=localdev" -e "AUTH=SAML_MOCK"
           app-test-container
           bash -c ". ./docker/test.sh"
 
