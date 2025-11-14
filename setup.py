@@ -23,8 +23,9 @@ setup(
     install_requires=[
         'django~=5.2',
         'django-storages[google]',
-        'djangorestframework~=3.14',
+        'djangorestframework~=3.15.1',
         'uw-restclients-canvas~=1.2',
+        'uw-django-saml2~=1.8',
     ],
     license='Apache License, Version 2.0',
     description=('An application to manage Training course and enrollment '

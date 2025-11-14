@@ -1,0 +1,36 @@
+[
+  {
+    "model": "training_provisioner.trainingcourse",
+    "pk": 1,
+    "fields": {
+      "course_name": "Civil Rights 101",
+      "blueprint_course_id": "BLUEPRINT_123",
+      "term_id": "AY2025-2026",
+      "account_id": "TRAINING_COURSES",
+      "membership_type": 0,
+      "course_status": 0,
+      "is_provisioned": true,
+      "course_count": 8,
+      "section_count": 0,
+      "creation_date": "2024-04-22T17:41:28+00:00",
+      "deleted_date": null
+    }
+  },
+  {
+    "model": "training_provisioner.trainingcourse",
+    "pk": 2,
+    "fields": {
+      "course_name": "Civil Rights 101 Booster",
+      "blueprint_course_id": "BLUEPRINT_456",
+      "term_id": "AY2025-2026",
+      "account_id": "TRAINING_COURSES",
+      "membership_type": 0,
+      "course_status": 0,
+      "is_provisioned": true,
+      "course_count": 2,
+      "section_count": 3,
+      "creation_date": "2024-04-22T17:41:28+00:00",
+      "deleted_date": null
+    }
+  }
+]
