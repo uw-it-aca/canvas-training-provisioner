@@ -161,6 +161,13 @@ externalSecrets:
           property: username
         - name: password
           property: password
+    - name: test-apps.studenttraining.uw.edu-ic-certs
+      externalKey: studenttraining/test/ic-certs
+      data:
+        - name: test-apps.studenttraining.uw.edu-ic.cert
+          property: test-apps.studenttraining.uw.edu-ic.cert
+        - name: test-apps.studenttraining.uw.edu-ic.key
+          property: test-apps.studenttraining.uw.edu-ic.key
     - name: test-apps.studenttraining.uw.edu-uw-idp-cert
       externalKey: idp-cert
       data:
