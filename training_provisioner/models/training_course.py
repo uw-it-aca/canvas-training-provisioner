@@ -76,7 +76,6 @@ class TrainingCourse(models.Model):
         return self.COURSE_STATUS_CHOICES[self.course_status][1]
 
     @property
-
     def course_id_prefix(self):
         return f"{self.term_id}-{self.blueprint_course_id}-"
 
