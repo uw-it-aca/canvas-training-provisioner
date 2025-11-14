@@ -20,7 +20,3 @@ class EnrollmentCourseMismatch(Exception):
 
 class EmptyQueueException(Exception):
     pass
-
-
-class MissingImportPathException(Exception):
-    pass

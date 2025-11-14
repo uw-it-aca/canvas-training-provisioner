@@ -10,7 +10,7 @@ from rest_framework.exceptions import APIException
 
 class StudentTrainingAPI(APIView):
     """
-        API base class definint authentication and permission
+        API base class providing authentication and permission
     """
 
     authentication_classes = (TokenAuthentication,)

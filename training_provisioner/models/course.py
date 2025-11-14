@@ -134,7 +134,7 @@ class Course(ImportResource):
             return section + chr(ord('A') + index)
 
         section += chr(ord('A') + (int(index / 26) - 1))
-        return _index_to_section((index - 26) % 26, section)
+        return self._index_to_section((index - 26) % 26, section)
 
     def _hash(self, integration_id):
         """
@@ -154,7 +154,7 @@ class Course(ImportResource):
             "term_id": self.term_id,
             "status": self.status,
             "account_id": self.account_id,
-            "created_date": localtime(self.deleted_date).isoformat(),
+            "created_date": localtime(self.created_date).isoformat(),
             "provisioned_date": localtime(
                 self.provisioned_date).isoformat() if (
                     self.provisioned_date is not None) else None,

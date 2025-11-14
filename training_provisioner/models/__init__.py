@@ -85,24 +85,6 @@ class Import(models.Model):
             modname, _, clsname = model_cls.rpartition('.')
             return clsname
 
-    def json_data(self):
-        return {
-            "queue_id": self.pk,
-            "type": self.csv_type,
-            "csv_path": self.csv_path,
-            "type_name": self.type_name,
-            "added_date": localtime(self.added_date).isoformat(),
-            "priority": ImportResource.PRIORITY_CHOICES[self.priority][1],
-            "override_sis_stickiness": self.override_sis_stickiness,
-            "csv_errors": self.csv_errors,
-            "post_status": self.post_status,
-            "canvas_state": self.canvas_state,
-            "canvas_progress": self.canvas_progress,
-            "canvas_warnings": self.canvas_warnings,
-            "canvas_errors": self.canvas_errors,
-            "canvas_id": self.canvas_id,
-        }
-
     def import_csv(self):
         """
         Imports all csv files for the passed import object, as a zipped

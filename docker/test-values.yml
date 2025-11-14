@@ -72,7 +72,7 @@ daemon:
       args: ["--delay", "30", "monitor_imports"]
 
 certs:
-  mounted: false
+  mounted: true
   certPath: /certs/test-apps.studenttraining.uw.edu-ic.cert
   keyPath: /certs/test-apps.studenttraining.uw.edu-ic.key
   secretName: test-apps.studenttraining.uw.edu-ic-certs
@@ -98,44 +98,6 @@ environmentVariables:
   - name: CLUSTER_CNAME
     value: test-apps.studenttraining.uw.edu
 
-externalSecrets:
-  enabled: true
-  secrets:
-    - name: test-apps.studenttraining.uw.edu-shared-secrets
-      externalKey: studenttraining/shared/secrets
-      data:
-        - name: storage-project-id
-          property: storage-project-id
-        - name: studenttraining-account-id
-          property: studenttraining-account-id
-#        - name: studenttraining-api-token
-#          property: studenttraining-api-token
-    - name: test-apps.studenttraining.uw.edu-gcs-credentials
-      externalKey: studenttraining/shared/gcs-credentials
-      data:
-        - name: credentials.json
-          property: credentials.json
-    - name: test-apps.studenttraining.uw.edu-secrets
-      externalKey: studenttraining/test/secrets
-      data:
-        - name: studenttraining-api-token
-          property: studenttraining-api-token
-        - name: django-secret
-          property: django-secret
-        - name: storage-bucket-name
-          property: storage-bucket-name
-    - name: test-apps.studenttraining.uw.edu-sql-secrets
-      externalKey: studenttraining/shared/sql-secrets
-      data:
-        - name: username
-          property: username
-        - name: password
-          property: password
-    - name: test-apps.studenttraining.uw.edu-uw-idp-cert
-      externalKey: idp-cert
-      data:
-        - name: uw-idp-cert
-          property: cert
 environmentVariablesSecrets:
   djangoSecret:
     name: DJANGO_SECRET
@@ -165,3 +127,42 @@ environmentVariablesSecrets:
     name: IDP_CERT
     secretName: test-apps.studenttraining.uw.edu-uw-idp-cert
     secretKey: uw-idp-cert
+
+externalSecrets:
+  enabled: true
+  secrets:
+    - name: test-apps.studenttraining.uw.edu-shared-secrets
+      externalKey: studenttraining/shared/secrets
+      data:
+        - name: storage-project-id
+          property: storage-project-id
+        - name: studenttraining-account-id
+          property: studenttraining-account-id
+#        - name: studenttraining-api-token
+#          property: studenttraining-api-token
+    - name: test-apps.studenttraining.uw.edu-gcs-credentials
+      externalKey: studenttraining/shared/gcs-credentials
+      data:
+        - name: credentials.json
+          property: credentials.json
+    - name: test-apps.studenttraining.uw.edu-secrets
+      externalKey: studenttraining/test/secrets
+      data:
+        - name: django-secret
+          property: django-secret
+        - name: storage-bucket-name
+          property: storage-bucket-name
+        - name: studenttraining-api-token
+          property: studenttraining-api-token
+    - name: test-apps.studenttraining.uw.edu-sql-secrets
+      externalKey: studenttraining/shared/sql-secrets
+      data:
+        - name: username
+          property: username
+        - name: password
+          property: password
+    - name: test-apps.studenttraining.uw.edu-uw-idp-cert
+      externalKey: idp-cert
+      data:
+        - name: uw-idp-cert
+          property: cert

@@ -9,7 +9,7 @@ from logging import getLogger
 logger = getLogger(__name__)
 
 
-class Command():
+class Command(BaseCommand):
     help = "Monitors Canvas Training Course import status."
 
     def handle(self, *args, **options):
