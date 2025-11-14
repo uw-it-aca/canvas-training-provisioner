@@ -14,16 +14,15 @@ RESTCLIENTS_CANVAS_HOST = ("https://"
                            f"{os.getenv('STUDENTTRAINING_ACCOUNT_DOMAIN')}")
 
 if os.getenv('AUTH', 'NONE') == 'SAML_MOCK':
-    if os.getenv('AUTH', 'NONE') == 'SAML_MOCK':
-        MOCK_SAML_ATTRIBUTES = {
-            'uwnetid': ['jstaff'],
-            'affiliations': ['employee', 'member'],
-            'eppn': ['jstaff@washington.edu'],
-            'scopedAffiliations': [
-                'employee@washington.edu', 'member@washington.edu'],
-            'isMemberOf': ['u_test_group', 'u_test_another_group',
-                           'u_acadev_studenttraining_admins'],
-        }
+    MOCK_SAML_ATTRIBUTES = {
+        'uwnetid': ['jstaff'],
+        'affiliations': ['employee', 'member'],
+        'eppn': ['jstaff@washington.edu'],
+        'scopedAffiliations': [
+            'employee@washington.edu', 'member@washington.edu'],
+        'isMemberOf': ['u_test_group', 'u_test_another_group',
+                       'u_acadev_studenttraining_admins'],
+    }
 
 if os.getenv('ENV', 'localdev') == 'localdev':
     DEBUG = True
