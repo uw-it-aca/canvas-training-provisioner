@@ -1,8 +1,13 @@
+# Copyright 2024 UW-IT, University of Washington
+# SPDX-License-Identifier: Apache-2.0
+
+source "/app/bin/activate"
+cd /app
+
+python manage.py collectstatic --noinput
+
 if [ "$ENV"  = "localdev" ]
 then
-
-  source "/app/bin/activate"
-  cd /app
   python manage.py migrate
   python manage.py initialize_db
 
