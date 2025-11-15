@@ -16,7 +16,6 @@ class Command(BaseCommand):
         try:
             for imp in Import.objects.find_by_requires_update():
                 imp.update_import_status()
-            self.update_job()
         except Exception as err:
             logger.error("{}".format(err))
             raise CommandError(err)
