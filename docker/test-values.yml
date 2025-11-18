@@ -80,10 +80,10 @@ certs:
 mountedSecrets:
   enabled: true
   secretName: test-apps.studenttraining.uw.edu-secrets
-  mountPath: /app
+  mountPath: /app/training_provisioner/data
   items:
     - key: membership.json
-      path: training_provisioner/data
+      path: membership.json
 
 environmentVariables:
   - name: ENV
