@@ -77,6 +77,13 @@ certs:
   keyPath: /certs/test-apps.studenttraining.uw.edu-ic.key
   secretName: test-apps.studenttraining.uw.edu-ic-certs
 
+mountedSecrets:
+  enabled: true
+  secretName: test-apps.studenttraining.uw.edu-secrets
+  items:
+    - key: membership.json
+      path: /app/training_provisioner/data
+
 environmentVariables:
   - name: ENV
     value: test
@@ -154,6 +161,8 @@ externalSecrets:
           property: storage-bucket-name
         - name: studenttraining-api-token
           property: studenttraining-api-token
+        - name: membership.json
+          property: membership.json
     - name: test-apps.studenttraining.uw.edu-sql-secrets
       externalKey: studenttraining/shared/sql-secrets
       data:
