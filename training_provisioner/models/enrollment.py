@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from django.db import models
+from django.db.models import F
 from training_provisioner.models import Import, ImportResource
 from training_provisioner.models.course import Course
 from training_provisioner.models.section import Section
