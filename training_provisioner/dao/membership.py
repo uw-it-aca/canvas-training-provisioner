@@ -2,17 +2,22 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from . import is_using_file_dao, mock_file_path
+from . import mock_file_path
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def test_membership(training_course):
     """
     Return list of integration_ids for testing
     """
-    if is_using_file_dao():
+    try:
         with open(mock_file_path("membership.json")) as f:
             return json.load(f)
+    except Exception as e:
+        logger.error(f"test membership: {e}")
 
     return []
 
