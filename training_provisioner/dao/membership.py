@@ -17,7 +17,7 @@ def test_membership(training_course):
         with open(mock_file_path("membership.json")) as f:
             return json.load(f)
     except Exception as e:
-        logger.error(f"test membership error: {e}")
+        logger.error(f"test membership: {e}")
 
     return []
 

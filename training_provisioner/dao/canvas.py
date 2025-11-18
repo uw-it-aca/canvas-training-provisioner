@@ -23,65 +23,6 @@ import json
 logger = getLogger(__name__)
 
 
-def get_account_by_id(account_id):
-    return Accounts().get_account(account_id)
-
-
-def get_account_by_sis_id(sis_account_id):
-    return Accounts().get_account_by_sis_id(sis_account_id)
-
-
-def get_sub_accounts(account_id):
-    return Accounts(per_page=100).get_sub_accounts(account_id)
-
-
-def get_all_sub_accounts(account_id):
-    return Accounts(per_page=100).get_all_sub_accounts(account_id)
-
-
-def update_account_sis_id(account_id, sis_account_id):
-    return Accounts().update_sis_id(account_id, sis_account_id)
-
-
-def get_admins(account_id):
-    return Admins(per_page=100).get_admins(account_id)
-
-
-def delete_admin(account_id, user_id, role):
-    try:
-        ret = Admins().delete_admin(account_id, user_id, role)
-    except DataFailureException as err:
-        if err.status == 404:  # Non-personal regid?
-            return False
-        raise
-    return ret
-
-
-def get_course_roles_in_account(account_sis_id):
-    if account_sis_id and account_sis_id.startswith('uwcourse:uweo'):
-        account_id = getattr(settings, 'CONTINUUM_CANVAS_ACCOUNT_ID')
-    else:
-        account_id = getattr(settings, 'RESTCLIENTS_CANVAS_ACCOUNT_ID')
-
-    return Roles().get_effective_course_roles_in_account(account_id)
-
-
-def get_account_role_data(account_id):
-    role_data = []
-    roles = Roles(per_page=100).get_roles_in_account(account_id)
-    for role in sorted(roles, key=lambda r: r.role_id):
-        role_data.append(role.json_data())
-    return json.dumps(role_data, sort_keys=True)
-
-
-def get_term_by_sis_id(term_sis_id):
-    return Terms().get_term_by_sis_id(term_sis_id)
-
-
-def get_course_by_id(course_id, params={}):
-    return Courses().get_course(course_id, params)
-
-
 def get_course_by_sis_id(course_sis_id, params={}):
     return Courses().get_course_by_sis_id(course_sis_id, params)
 
