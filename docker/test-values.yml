@@ -117,7 +117,7 @@ environmentVariablesSecrets:
     secretKey: studenttraining-account-id
   studenttrainingAPIToken:
     name: CANVAS_OAUTH_BEARER
-    secretName: test-apps.studenttraining.uw.edu-secrets
+    secretName: test-apps.studenttraining.uw.edu-shared-secrets
     secretKey: studenttraining-api-token
   storageBucketName:
     name: STORAGE_BUCKET_NAME
@@ -146,8 +146,8 @@ externalSecrets:
           property: storage-project-id
         - name: studenttraining-account-id
           property: studenttraining-account-id
-#        - name: studenttraining-api-token
-#          property: studenttraining-api-token
+        - name: studenttraining-api-token
+          property: studenttraining-api-token
     - name: test-apps.studenttraining.uw.edu-gcs-credentials
       externalKey: studenttraining/shared/gcs-credentials
       data:
@@ -160,8 +160,6 @@ externalSecrets:
           property: django-secret
         - name: storage-bucket-name
           property: storage-bucket-name
-        - name: studenttraining-api-token
-          property: studenttraining-api-token
         - name: membership.json
           property: membership.json
     - name: test-apps.studenttraining.uw.edu-sql-secrets
