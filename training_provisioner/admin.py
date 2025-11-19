@@ -46,6 +46,9 @@ class AbstractSAMLAdminModel():
 
 
 class AbstractSAMLReadOnlyAdminModel():
+    def has_view_permission(self, request, obj=None):
+        return is_admin_user(request)
+
     def has_add_permission(self, request):
         return False
 
