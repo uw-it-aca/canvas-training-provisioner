@@ -202,7 +202,7 @@ class Import(models.Model):
         }
 
     def __str__(self):
-        return json.dumps(self.json_data())
+        return f"{self.type_name} import {self.csv_path}"
 
     class Meta:
         db_table = 'import'
