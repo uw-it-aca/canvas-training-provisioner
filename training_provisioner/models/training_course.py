@@ -37,9 +37,9 @@ class TrainingCourse(models.Model):
     )
 
     COURSE_MODELS = (
-        'training_provisioner.models.course.Course',
-        'training_provisioner.models.section.Section',
-        'training_provisioner.models.enrollment.Enrollment'
+        ('training_provisioner.models.course', 'Course'),
+        ('training_provisioner.models.section', 'Section'),
+        ('training_provisioner.models.enrollment', 'Enrollment'),
     )
 
     COURSE_STATUS_ACTIVE = 0
@@ -110,10 +110,9 @@ class TrainingCourse(models.Model):
         return int(integration_id)
 
     def load_courses_and_enrollments(self):
-        for model_cls in self.COURSE_MODELS:
-            modname, _, clsname = model_cls.rpartition('.')
-            module = import_module(modname)
-            model = getattr(module, clsname)
+        for module_name, model_name in self.COURSE_MODELS:
+            module = import_module(module_name)
+            model = getattr(module, model_name)
             model.objects.add_models_for_training_course(self)
 
     def json_data(self):
