@@ -124,9 +124,9 @@ class Course(ImportResource):
                     self.training_course.section_count) else None
 
     def _section_id(self, index):
-        return (f"{self.course_id}-{self._section_letter(index)}-")
+        return (f"{self.course_id}-{self.section_letter(index)}-")
 
-    def _section_letter(self, index):
+    def section_letter(self, index):
         return self._index_to_section(index, '')
 
     def _index_to_section(self, index, section):
