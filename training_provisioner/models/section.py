@@ -85,6 +85,10 @@ class Section(ImportResource):
     objects = SectionManager()
 
     @property
+    def section_letter(self):
+        return self.course.section_letter(self.section_ordinal - 1)
+
+    @property
     def term_id(self):
         return self.training_course.term_id
 

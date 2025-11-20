@@ -48,7 +48,7 @@ class CourseBuilder(Builder):
         return {
             'section_id': section.section_id,
             'course_id': section.course.course_id,
-            'name': f"Section {section.section_ordinal}"
+            'name': f"Section {section.section_letter}"
         }
 
     def _enrollment_data(self, enrollment):
