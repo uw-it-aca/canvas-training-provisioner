@@ -6,6 +6,7 @@ from training_provisioner.models import Import
 from training_provisioner.views.api.imports import ImportView, ImportListView
 from django.test.client import RequestFactory
 from django.urls import reverse_lazy
+from django.contrib.auth.models import AnonymousUser
 from prometheus_client import REGISTRY
 import json
 
@@ -40,3 +41,21 @@ class ImportsAPITest(TrainingCourseTestCase):
         imports = json.loads(response.content)
 
         self.assertEqual(imports.get('queue_id'), 1)
+
+    def test_delete_import(self):
+        import_model = Import.objects.create(
+            csv_type='course', canvas_id='1',
+            post_status=200, canvas_progress=100)
+
+        import_view_api = ImportView()
+        url = reverse_lazy('import_view',
+                           kwargs={'import_id': '1'})
+        request = RequestFactory().get(url)
+        request.user = AnonymousUser()
+        response = import_view_api.delete(request, import_id='1')
+
+        self.assertTrue(response.status_code, 204)
+        self.assertRaises(
+            Import.DoesNotExist,
+            Import.objects.get,
+            csv_type='course', canvas_id='1')

@@ -24,3 +24,15 @@ class CourseModelTest(TrainingCourseTestCase):
                              training_course.course_count)
 
             Course.objects.all().delete()
+
+    def test_course_model_queue(self):
+        total_courses = 0
+
+        for training_course in TrainingCourse.objects.active_courses():
+            Course.objects.add_models_for_training_course(training_course)
+            total_courses += training_course.course_count
+
+        imp = Course.objects.queue_by_priority(
+            ImportResource.PRIORITY_DEFAULT)
+
+        self.assertEqual(imp.queued_objects().count(), total_courses)

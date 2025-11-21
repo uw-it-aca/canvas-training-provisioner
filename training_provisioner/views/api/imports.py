@@ -35,14 +35,11 @@ class ImportView(StudentTrainingAPI):
             imp = Import.objects.get(id=import_id)
 
             logger.info(
-                'imports ({}): DELETE: type: {}, queue_id: {}, '
-                'post_status: {}, canvas_state: {}'.format(
-                    request.user, imp.csv_type, imp.pk, imp.post_status,
-                    imp.canvas_state))
+                f"import {imp.csv_path} deleted by {request.user.username}")
 
             imp.delete()
 
-            return self.json_response()
+            return self.json_response(data={}, status=204)
 
         except Import.DoesNotExist:
             return self.error_response(
