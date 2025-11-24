@@ -21,19 +21,17 @@ class IndexViewTest(TestCase):
         middleware = SessionMiddleware(get_response)
         response = middleware(self.request)
         self.request.user = User.objects.create_user(username='jstaff')
+        self.saml_user_data = {'uwnetid': ['jstaff']}
+        self.request.session['samlUserdata'] = self.saml_user_data
 
     def test_home_view(self):
-        self.request.session['samlUserdata'] = {
-            'uwnetid': ['jstaff'], 'isMemberOf': ['uw_member']}
-
+        self.saml_user_data['isMemberOf'] = ['uw_member']
         response = IndexView.as_view()(self.request)
 
         self.assertEqual(response.status_code, 200)
 
     def test_home_view_admin(self):
-        self.request.session['samlUserdata'] = {
-            'uwnetid': ['jstaff'], 'isMemberOf': ['u_acadev_unittest']}
-
+        self.saml_user_data['isMemberOf'] = ['u_acadev_unittest']
         response = IndexView.as_view()(self.request)
 
         self.assertEqual(response.status_code, 302)
