@@ -8,6 +8,10 @@ from training_provisioner.dao.membership import (
     title_vi_booster_membership)
 from importlib import import_module
 import json
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 class TrainingCourseManager(models.Manager):
@@ -21,6 +25,15 @@ class TrainingCourseManager(models.Manager):
             filter['term_id'] = term_id
 
         return self.filter(**filter)
+
+    def load_active_courses(self):
+        for training_course in self.active_courses():
+            logger.info(
+                "Loading training course "
+                f"{training_course.blueprint_course_id} "
+                f"for term {training_course.term_id}")
+
+            training_course.load_courses_and_enrollments()
 
 
 class TrainingCourse(models.Model):
