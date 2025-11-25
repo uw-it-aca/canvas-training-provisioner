@@ -47,11 +47,6 @@ class AdminHeader(CSVFormat):
         self.data = ['user_id', 'account_id', 'role', 'status']
 
 
-class TermHeader(CSVFormat):
-    def __init__(self):
-        self.data = ['term_id', 'name', 'status']
-
-
 class CourseHeader(CSVFormat):
     def __init__(self):
         self.data = ['course_id', 'short_name', 'long_name', 'account_id',
@@ -101,17 +96,6 @@ class AdminCSV(CSVFormat):
     """
     def __init__(self, user_id, account_id, role, status='active'):
         self.data = [user_id, account_id, role, status]
-
-
-class TermCSV(CSVFormat):
-    """
-    term_id, name, status (active|deleted), start_date, end_date
-    """
-    def __init__(self, section, status='active'):
-        self.key = term_sis_id(section)
-        self.data = [self.key,
-                     term_name(section),
-                     status]
 
 
 class CourseCSV(CSVFormat):

@@ -6,7 +6,7 @@ from training_provisioner.models.section import Section
 from training_provisioner.models.enrollment import Enrollment
 from training_provisioner.builders import Builder
 from training_provisioner.csv.format import (
-    CourseCSV, SectionCSV, TermCSV, EnrollmentCSV)
+    CourseCSV, SectionCSV, EnrollmentCSV)
 
 
 class CourseBuilder(Builder):
