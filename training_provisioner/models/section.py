@@ -88,18 +88,6 @@ class Section(ImportResource):
     def section_letter(self):
         return self.course.section_letter(self.section_ordinal - 1)
 
-    @property
-    def term_id(self):
-        return self.training_course.term_id
-
-    @property
-    def status(self):
-        return self.training_course.course_status_name
-
-    @property
-    def account_id(self):
-        return self.training_course.account_id
-
     def json_data(self):
         return {
             "section_id": self.section_id,
