@@ -41,7 +41,8 @@ class CourseBuilder(Builder):
             'blueprint_course_id':
                 course.training_course.blueprint_course_id,
             'term_id': course.training_course.term_id,
-            'account_id': course.training_course.account_id
+            'account_id': course.training_course.account_id,
+            'status': course.status
         }
 
     def _section_data(self, section):

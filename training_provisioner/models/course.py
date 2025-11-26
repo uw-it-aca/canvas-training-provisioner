@@ -35,6 +35,10 @@ class CourseManager(models.Manager):
     def get_courses_by_priority(self, priority):
         return self.filter(priority=priority, deleted_date__isnull=True)
 
+    def get_models_for_training_course(self, training_course):
+        return self.filter(
+            training_course=training_course, deleted_date__isnull=True)
+
     def queue_by_priority(self, priority):
         kwargs = {
             'priority': priority,
