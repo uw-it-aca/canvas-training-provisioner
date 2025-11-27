@@ -6,7 +6,7 @@ from training_provisioner.models.section import Section
 from training_provisioner.models.enrollment import Enrollment
 from training_provisioner.builders import Builder
 from training_provisioner.csv.format import (
-    CourseCSV, SectionCSV, TermCSV, EnrollmentCSV)
+    CourseCSV, SectionCSV, EnrollmentCSV)
 
 
 class CourseBuilder(Builder):
@@ -41,7 +41,8 @@ class CourseBuilder(Builder):
             'blueprint_course_id':
                 course.training_course.blueprint_course_id,
             'term_id': course.training_course.term_id,
-            'account_id': course.training_course.account_id
+            'account_id': course.training_course.account_id,
+            'status': course.status
         }
 
     def _section_data(self, section):

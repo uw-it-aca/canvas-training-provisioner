@@ -8,6 +8,10 @@ from training_provisioner.dao.membership import (
     title_vi_booster_membership)
 from importlib import import_module
 import json
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 class TrainingCourseManager(models.Manager):
@@ -21,6 +25,15 @@ class TrainingCourseManager(models.Manager):
             filter['term_id'] = term_id
 
         return self.filter(**filter)
+
+    def load_active_courses(self):
+        for training_course in self.active_courses():
+            logger.info(
+                "Loading training course "
+                f"{training_course.blueprint_course_id} "
+                f"for term {training_course.term_id}")
+
+            training_course.load_courses_and_enrollments()
 
 
 class TrainingCourse(models.Model):
@@ -36,8 +49,9 @@ class TrainingCourse(models.Model):
         (TITLE_VI_BOOSTER_MEMBERS, 'title_vi_booster_membership'),
     )
 
+    COURSE_MODEL = ('training_provisioner.models.course', 'Course')
     COURSE_MODELS = (
-        ('training_provisioner.models.course', 'Course'),
+        COURSE_MODEL,
         ('training_provisioner.models.section', 'Section'),
         ('training_provisioner.models.enrollment', 'Enrollment'),
     )
@@ -71,6 +85,10 @@ class TrainingCourse(models.Model):
 
     objects = TrainingCourseManager()
 
+    __original_course_status = None
+    __original_course_name = None
+    __original_blueprint_id = None
+
     @property
     def course_status_name(self):
         return self.COURSE_STATUS_CHOICES[self.course_status][1]
@@ -82,6 +100,27 @@ class TrainingCourse(models.Model):
     @property
     def course_import_ids(self):
         return [f"{self.course_id(i)}" for i in range(self.course_count)]
+
+    def save(self, force_update=False, *args, **kwargs):
+        """
+        if course dependent fields change, make sure to prioritize
+        course import, else if not provisioned, disallow save
+        """
+        if (self.__original_course_status != self.course_status
+                or self.__original_course_name != self.course_name
+                or self.__original_blueprint_id != self.blueprint_course_id):
+            model = self._dependent_model(*self.COURSE_MODEL)
+            model.objects.get_models_for_training_course(self).update(
+                priority=model.PRIORITY_DEFAULT)
+
+            self.__original_course_status = self.course_status
+            self.__original_course_name = self.course_name
+            self.__original_blueprint_id = self.blueprint_course_id
+        elif self.pk and self.is_provisioned:
+            logger.error(f"Cannot save {self} as it is already provisioned")
+            return
+
+        super().save(force_update, *args, **kwargs)
 
     def course_id(self, index):
         ordinal = index + 1
@@ -110,10 +149,15 @@ class TrainingCourse(models.Model):
         return int(integration_id)
 
     def load_courses_and_enrollments(self):
-        for module_name, model_name in self.COURSE_MODELS:
-            module = import_module(module_name)
-            model = getattr(module, model_name)
+        for model in self._dependent_models():
             model.objects.add_models_for_training_course(self)
+
+    def _dependent_models(self):
+        for course_model in self.COURSE_MODELS:
+            yield self._dependent_model(*course_model)
+
+    def _dependent_model(self, module_name, model_name):
+        return getattr(import_module(module_name), model_name)
 
     def json_data(self):
         return {

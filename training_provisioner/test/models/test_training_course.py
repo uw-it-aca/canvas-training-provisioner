@@ -7,14 +7,19 @@ from mock import patch
 
 
 class TrainingCourseModelTest(TrainingCourseTestCase):
+    def test_load_active_courses(self):
+        TrainingCourse.objects.load_active_courses()
+
+        courses = TrainingCourse.objects.active_courses()
+        self.assertEqual(courses.count(), 2)
+
     @patch('training_provisioner.models.'
            'training_course.TrainingCourse.get_course_membership')
     def test_membership(self, mock_membership):
         mock_membership.return_value = self.get_membership()
-
         course = TrainingCourse.objects.get(pk=1)
-
         course_id_list = course.course_import_ids
+
         for i in range(course.course_count):
             self.assertEqual(
                 course_id_list[i], f"{course.course_id_prefix}{(i+1):03d}")

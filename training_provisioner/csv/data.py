@@ -5,9 +5,9 @@
 from django.conf import settings
 from django.core.files.storage import default_storage
 from training_provisioner.csv.format import (
-    UserHeader, AdminHeader, TermHeader, CourseHeader,
+    UserHeader, AdminHeader, CourseHeader,
     SectionHeader, EnrollmentHeader, UserCSV,
-    AdminCSV, TermCSV, CourseCSV, SectionCSV, EnrollmentCSV)
+    AdminCSV, CourseCSV, SectionCSV, EnrollmentCSV)
 from datetime import datetime
 from logging import getLogger
 import os
@@ -22,7 +22,6 @@ class Collector(object):
     def _init_data(self):
         self.accounts = []
         self.admins = []
-        self.terms = {}
         self.courses = {}
         self.sections = {}
         self.enrollments = []
@@ -31,7 +30,6 @@ class Collector(object):
         self.headers = {
             'users': UserHeader(),
             'admins': AdminHeader(),
-            'terms': TermHeader(),
             'courses': CourseHeader(),
             'sections': SectionHeader(),
             'enrollments': EnrollmentHeader(),
@@ -48,8 +46,6 @@ class Collector(object):
             return self._add_enrollment(formatter)
         elif isinstance(formatter, AdminCSV):
             return self._add_admin(formatter)
-        elif isinstance(formatter, TermCSV):
-            return self._add_term(formatter)
         elif isinstance(formatter, CourseCSV):
             return self._add_course(formatter)
         elif isinstance(formatter, SectionCSV):
@@ -65,12 +61,6 @@ class Collector(object):
     def _add_user(self, formatter):
         if formatter.key not in self.users:
             self.users[formatter.key] = formatter
-            return True
-        return False
-
-    def _add_term(self, formatter):
-        if formatter.key not in self.terms:
-            self.terms[formatter.key] = formatter
             return True
         return False
 
