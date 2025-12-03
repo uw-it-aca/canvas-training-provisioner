@@ -77,8 +77,7 @@ class SAMLAdminTrainingCourseModel(SAMLAdminModel):
         dependent_fields = []
 
         if obj and obj.is_provisioned:  # editing an existing object
-            dependent_fields = [
-                'course_count', 'section_count', 'membership_type']
+            dependent_fields = ['course_count', 'membership_type']
 
         return self.readonly_fields + dependent_fields
 

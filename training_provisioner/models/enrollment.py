@@ -143,6 +143,10 @@ class Enrollment(ImportResource):
 
     objects = EnrollmentManager()
 
+    @property
+    def is_active(self):
+        return self.deleted_date is None
+
     def json_data(self):
         return {
             'course': self.course.json_data(),
@@ -152,6 +156,7 @@ class Enrollment(ImportResource):
             'provisioned_date': localtime(
                 self.provisioned_date).isoformat() if (
                     self.provisioned_date) else None,
+            'is_active': self.is_active,
             'deleted_date': localtime(self.deleted_date).isoformat() if (
                 self.deleted_date) else None,
         }
