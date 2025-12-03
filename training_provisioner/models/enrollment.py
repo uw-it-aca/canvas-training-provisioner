@@ -49,7 +49,8 @@ class EnrollmentManager(models.Manager):
                             f"from {drop_id}")
 
             except Enrollment.DoesNotExist:
-                pass
+                logger.info("Missing dropped enrollment: "
+                            f"{dropped_netid} from {training_course}")
 
         return enrollments
 

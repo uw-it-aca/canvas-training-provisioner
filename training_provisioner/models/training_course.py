@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from django.db import models
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.utils.timezone import localtime
 from training_provisioner.dao.membership import (
     test_membership, title_vi_membership,
@@ -78,16 +79,14 @@ class TrainingCourse(models.Model):
         default=COURSE_STATUS_ACTIVE,
         choices=COURSE_STATUS_CHOICES)
     is_provisioned = models.BooleanField(default=False)
-    course_count = models.IntegerField(default=0)
-    section_count = models.IntegerField(default=0)
+    course_count = models.IntegerField(
+        default=1, validators=[MinValueValidator(1)])
+    section_count = models.IntegerField(
+        default=0, validators=[MinValueValidator(0)])
     creation_date = models.DateTimeField(auto_now=True)
     deleted_date = models.DateTimeField(null=True, blank=True)
 
     objects = TrainingCourseManager()
-
-    __original_course_status = None
-    __original_course_name = None
-    __original_blueprint_id = None
 
     @property
     def course_status_name(self):
@@ -103,22 +102,13 @@ class TrainingCourse(models.Model):
 
     def save(self, force_update=False, *args, **kwargs):
         """
-        if course dependent fields change, make sure to prioritize
-        course import, else if not provisioned, disallow save
+        re-prioritize course import on change leaving it to the
+        admin interface to prevent read-only value changes
         """
-        if (self.__original_course_status != self.course_status
-                or self.__original_course_name != self.course_name
-                or self.__original_blueprint_id != self.blueprint_course_id):
+        if self.pk:
             model = self._dependent_model(*self.COURSE_MODEL)
             model.objects.get_models_for_training_course(self).update(
                 priority=model.PRIORITY_DEFAULT)
-
-            self.__original_course_status = self.course_status
-            self.__original_course_name = self.course_name
-            self.__original_blueprint_id = self.blueprint_course_id
-        elif self.pk and self.is_provisioned:
-            logger.error(f"Cannot save {self} as it is already provisioned")
-            return
 
         super().save(force_update, *args, **kwargs)
 
