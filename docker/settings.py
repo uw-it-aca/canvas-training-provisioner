@@ -53,3 +53,21 @@ CACHES = {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache"
     }
 }
+
+# EDW (Enterprise Data Warehouse) Configuration
+if os.getenv('ENV', 'localdev') == 'localdev':
+    # Local development - use mock data or test database
+    EDW_HOST = os.getenv('EDW_HOST', 'localhost')
+    EDW_USER = os.getenv('EDW_USER', 'test_user')
+    EDW_PASS = os.getenv('EDW_PASS', 'test_password')
+    # In localdev, EDWConnection should use mock data instead of real database
+    EDW_USE_MOCK_DATA = True
+else:
+    # Production/staging - use real EDW credentials
+    EDW_HOST = os.getenv('EDW_HOST')
+    EDW_USER = os.getenv('EDW_USER')
+    EDW_PASS = os.getenv('EDW_PASS')
+    EDW_USE_MOCK_DATA = False
+
+    if not all([EDW_HOST, EDW_USER, EDW_PASS]):
+        raise ValueError("EDW connection parameters (EDW_HOST, EDW_USER, EDW_PASS) must be set in production environment")
