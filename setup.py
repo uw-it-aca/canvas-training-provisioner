@@ -26,6 +26,9 @@ setup(
         'djangorestframework~=3.15.1',
         'uw-restclients-canvas~=1.2',
         'uw-django-saml2~=1.8',
+        'sqlalchemy~=2.0',
+        'pandas~=2.1',
+        'pymssql~=2.2',
     ],
     license='Apache License, Version 2.0',
     description=('An application to manage Training course and enrollment '
