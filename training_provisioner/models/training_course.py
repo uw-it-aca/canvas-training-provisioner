@@ -4,8 +4,8 @@
 from django.db import models
 from django.utils.timezone import localtime
 from training_provisioner.dao.membership import (
-    test_membership, title_vi_membership,
-    title_vi_booster_membership)
+    test_membership, title_vi_membership_candidates,
+    title_vi_booster_membership_candidates)
 from importlib import import_module
 import json
 
@@ -32,8 +32,8 @@ class TrainingCourse(models.Model):
     TITLE_VI_BOOSTER_MEMBERS = 2
     MEMBERSHIP_CHOICES = (
         (TEST_MEMBERS, 'test_membership'),
-        (TITLE_VI_MEMBERS, 'title_vi_membership'),
-        (TITLE_VI_BOOSTER_MEMBERS, 'title_vi_booster_membership'),
+        (TITLE_VI_MEMBERS, 'title_vi_membership_candidates'),
+        (TITLE_VI_BOOSTER_MEMBERS, 'title_vi_booster_membership_candidates'),
     )
 
     COURSE_MODELS = (
@@ -93,6 +93,18 @@ class TrainingCourse(models.Model):
         except Exception as ex:
             raise ValueError(f"Invalid membership: {ex}")
 
+    def get_course_type(self):
+        """
+        Extract course type from course_name.
+        Returns: '101', 'booster', or None if type can't be determined
+        """
+        course_name_lower = self.course_name.lower()
+        if 'booster' in course_name_lower:
+            return 'booster'
+        elif '101' in course_name_lower:
+            return '101'
+        return None
+    
     def get_course_id_for_member(self, integration_id):
         return self.course_id(self._course_index_for_member(integration_id))
 

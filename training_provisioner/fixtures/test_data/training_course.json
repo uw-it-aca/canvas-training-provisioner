@@ -20,7 +20,7 @@
     "model": "training_provisioner.trainingcourse",
     "pk": 2,
     "fields": {
-      "course_name": "Civil Rights 101 Booster",
+      "course_name": "Civil Rights Booster",
       "blueprint_course_id": "BLUEPRINT_456",
       "term_id": "AY2025-2026",
       "account_id": "TRAINING_COURSES",
@@ -54,7 +54,7 @@
     "model": "training_provisioner.trainingcourse",
     "pk": 4,
     "fields": {
-      "course_name": "Civil Rights 101 Booster",
+      "course_name": "Civil Rights Booster",
       "blueprint_course_id": "BLUEPRINT_890",
       "term_id": "AY2026-2027",
       "account_id": "TRAINING_COURSES",

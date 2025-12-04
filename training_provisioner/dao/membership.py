@@ -1,7 +1,6 @@
 # Copyright 2025 UW-IT, University of Washington
 # SPDX-License-Identifier: Apache-2.0
 
-
 from . import mock_file_path
 import json
 import re
@@ -24,20 +23,29 @@ def test_membership(training_course):
     return []
 
 
-def title_vi_membership(training_course):
+def title_vi_membership_candidates(training_course):
     """
-    Return a list of integration_ids for Title VI members
-
-    query SDB for appropriate list of students for Title VI training
+    Query SDB for appropriate list of students for the supplied Title VI
+    training course.
 
     This query will return a list of eligible students, but the business logic
-    for determining who should be enrolled in the training course will be
-    handled on a student by student basis in the EnrollmentManager.
+    for determining who should be enrolled in a given training course will be
+    handled on a student by student basis in the EnrollmentManager since
+    enrollment depends on past enrollments.
 
-    TODO:
-        - Verify that course_name is accessible and the expected format ("AY-YYYY-YYYY-<course>")
+    Enrollment manager will also need to check for dropped students, as they
+    will need to be marked as inactive in the training course.
+
+    Args:
+        training_course (TrainingCourse): training course object
+    
+    Returns:
+        list: integration_ids of eligible students
     """
     eligible_members = []
+
+    """
+    # Use this if we are getting an SIS ID, otherwise we'll use term_id
     training_course_parts = re.match(r"^AY-(\d{4})-(\d{4})-(.*)",
                                      training_course.course_name)
     if not training_course_parts:
@@ -47,8 +55,16 @@ def title_vi_membership(training_course):
     # Relying on the SIS ID to determine academic year
     training_course_academic_year = f"{training_course_parts[1]}/" \
         f"{training_course_parts[2]}"
-    # current_quarter_info = get_current_quarter_info()
-    # Note: we will override the first course to only get Spring quarter,
+    """
+
+    # Use term_id to determine academic year
+    term_parts = re.match(r"^AY(\d{4})-(\d{4})$", training_course.term_id)
+    if not term_parts:
+        raise ValueError(
+            f"Invalid term_id format: {training_course.term_id}")
+    training_course_academic_year = f"{term_parts[1]}/{term_parts[2]}"
+
+    # Note: we will override the first Title VI 101 course to only get Spring 2026,
     # but otherwise we should get all quarters in the academic year to avoid
     # dropping students who stop attending later in the year...
     start_quarter = None
@@ -57,17 +73,31 @@ def title_vi_membership(training_course):
     quarters_in_ay = get_quarters_in_ay(
         training_course_academic_year,
         start_quarter)
-    for quarter in quarters_in_ay:
-        quarter_info = get_info_for_quarter(quarter)
-        for student_id in get_students_from_registration(quarter):
+    for quartercode in quarters_in_ay:
+        quarter_info = get_info_for_quarter(quartercode)
+        for student_id in get_students_from_registration(quartercode):
             if student_id not in eligible_members:
                 eligible_members.append(student_id)
         if quarter_info['censusDayStatus'] == 'Before Census Day':
-            for student_id in get_students_from_admissions(quarter):
+            for student_id in get_students_from_admissions(quartercode):
                 if student_id not in eligible_members:
                     eligible_members.append(student_id)
 
     return eligible_members
+
+
+def title_vi_booster_membership_candidates(training_course):
+    """
+    Booster course membership candidates are the same as the main Title VI
+    course.
+
+    Args:
+        training_course (TrainingCourse): training course object
+
+    Returns:
+        list: integration_ids of eligible students
+    """
+    return title_vi_membership_candidates(training_course)
 
 
 def get_quarters_in_ay(academic_year, current_quarter_code):
@@ -76,6 +106,17 @@ def get_quarters_in_ay(academic_year, current_quarter_code):
     like "20254", return list of quarters in that academic year occurring
     on or after the current quarter, if a quarter code is specified or all
     quarters if not.
+
+    NOTE: At a project level we will use official UW academic year (SUM-SPR)
+        See: https://metadata.uw.edu/catalog/viewitem/Term/studentdata.academicyear
+
+    Args:
+        academic_year (str): academic year in "YYYY/YYYY" format
+        current_quarter_code (str|int|None): current quarter code like "20254"
+
+    Returns:
+        list: quarter codes in the academic year on or after current quarter,
+            eg, ['20261', '20262', '20263', '20264']
     """
     ay_parts = re.match(r"^(\d{4})/(\d{4})$", academic_year)
     if not ay_parts:
@@ -98,7 +139,15 @@ def get_quarters_in_ay(academic_year, current_quarter_code):
 
 
 def get_current_quarter_info():
-    # Query EDWPresentation.sec.dimDate for AcademicContigYrQtrCode based on now()
+    """
+    Return dict with info about the current quarter based on today's date
+
+    Returns:
+    dict: info about the current quarter, eg:
+        {'AcademicContigYrQtrCode': '20254',
+        'AcademicYrName': '2025/2026',
+        'CensusDayStatus': 'After Census Day'}
+    """
     query = """
         SELECT
             d.AcademicContigYrQtrCode,
@@ -115,18 +164,20 @@ def get_current_quarter_info():
         WHERE d.CalendarDate = CONVERT(DATE, GETDATE())
     """
     df = execute_edw_query(query)
-    """
-        Will return something like:
-        {'AcademicContigYrQtrCode': '20254',
-        'AcademicYrName': '2025/2026',
-        'CensusDayStatus': 'After Census Day'}
-    """
     return df.iloc[0].to_dict()
 
 
 def get_info_for_quarter(quarter_code):
     """
     Given a quarter code like "20254", return dict with info about that quarter
+
+    Args:
+        quarter_code (str|int): quarter code like "20254"
+    Returns:
+        dict: info about the quarter, eg:
+            {'AcademicContigYrQtrCode': '20254',
+            'AcademicYrName': '2025/2026',
+            'CensusDayStatus': 'After Census Day'}
     """
     if not re.match(r"^\d{5}$", str(quarter_code)):
         raise ValueError(f"Invalid quarter_code format: {quarter_code}")
@@ -149,12 +200,6 @@ def get_info_for_quarter(quarter_code):
             AND d.AcademicQtrCensusDayInd = 'Y'
     """
     df = execute_edw_query(query)
-    """
-        Will return something like:
-        {'AcademicContigYrQtrCode': '20254',
-        'AcademicYrName': '2025/2026',
-        'CensusDayStatus': 'After Census Day'}
-    """
     return df.iloc[0].to_dict()
 
 
@@ -162,6 +207,11 @@ def get_students_from_registration(quarter_code):
     """
     Given a quarter code like "20254", return list of integration_ids
     for students registered in that quarter.
+
+    Args:
+        quarter_code (str|int): quarter code like "20254"
+    Returns:
+        list: student_numbers of registered students
     """
     if not re.match(r"^\d{5}$", str(quarter_code)):
         raise ValueError(f"Invalid quarter_code format: {quarter_code}")
@@ -185,6 +235,12 @@ def get_students_from_admissions(quarter_code):
     """
     Given a quarter code like "20254", return list of integration_ids
     for students admitted for that quarter.
+
+    Args:
+        quarter_code (str|int): quarter code like "20254"
+
+    Returns:
+        list: student_numbers of admitted students
     """
     if not re.match(r"^\d{5}$", str(quarter_code)):
         raise ValueError(f"Invalid quarter_code format: {quarter_code}")
