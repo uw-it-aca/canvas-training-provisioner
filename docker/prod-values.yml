@@ -58,6 +58,38 @@ cronjob:
       schedule: "40 2 * * 1-5"
       command: ["/scripts/management_command.sh"]
       args: ["load_training_courses"]
+      sidecars:
+        - name: ssh-proxy
+          image: "us-docker.pkg.dev/uwit-mci-axdd/containers/uw-ssh-client:89695b2"
+          environmentVariables:
+            - name: PROXY_ID_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: apps.studenttraining.uw.edu-shared-secrets
+                  key: proxy-id-key
+            - name: PROXY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: apps.studenttraining.uw.edu-shared-secrets
+                  key: proxy-id
+            - name: PROXY_HOSTNAME
+              valueFrom:
+                secretKeyRef:
+                  name: apps.studenttraining.uw.edu-shared-secrets
+                  key: proxy-hostname
+            - name: TARGET_HOSTNAME
+              valueFrom:
+                secretKeyRef:
+                  name: apps.studenttraining.uw.edu-edw-secrets
+                  key: hostname
+            - name: TARGET_PORT
+              value: "1433"
+            - name: LOCAL_PORT
+              value: "1433"
+          command:
+            - "sh"
+            - "-c"
+            - 'mkdir -m 0700 ~/.ssh && echo "${PROXY_ID_KEY}" > ~/.ssh/id_ecdsa && chmod 400 ~/.ssh/id_ecdsa && ssh ${PROXY_ID}@${PROXY_HOSTNAME} -o StrictHostKeyChecking=no -N -L 127.0.0.1:${LOCAL_PORT}:${TARGET_HOSTNAME}:${TARGET_PORT}'
     - name: import-training-courses
       schedule: "40 3 * * 1-5"
       command: ["/scripts/management_command.sh"]
@@ -135,6 +167,14 @@ environmentVariablesSecrets:
     name: IDP_CERT
     secretName: apps.studenttraining.uw.edu-uw-idp-cert
     secretKey: uw-idp-cert
+  EDWuser:
+    name: EDW_USER
+    secretName: apps.studenttraining.uw.edu-edw-secrets
+    secretKey: username
+  EDWpassword:
+    name: EDW_PASS
+    secretName: apps.studenttraining.uw.edu-edw-secrets
+    secretKey: password
 
 externalSecrets:
   enabled: true
@@ -148,6 +188,12 @@ externalSecrets:
           property: studenttraining-account-id
         - name: studenttraining-api-token
           property: studenttraining-api-token
+        - name: proxy-id-key
+          property: proxy-id-key
+        - name: proxy-id
+          property: proxy-id
+        - name: proxy-hostname
+          property: proxy-hostname
     - name: apps.studenttraining.uw.edu-gcs-credentials
       externalKey: studenttraining/shared/gcs-credentials
       data:
@@ -165,6 +211,15 @@ externalSecrets:
     - name: apps.studenttraining.uw.edu-sql-secrets
       externalKey: studenttraining/shared/sql-secrets
       data:
+        - name: username
+          property: username
+        - name: password
+          property: password
+    - name: apps.studenttraining.uw.edu-edw-secrets
+      externalKey: studenttraining/shared/edw-secrets
+      data:
+        - name: hostname
+          property: hostname
         - name: username
           property: username
         - name: password
