@@ -1,0 +1,11 @@
+{
+  "data": [
+    {
+      "AcademicContigYrQtrCode": 20254,
+      "AcademicYrName": "2025/2026",
+      "CensusDayStatus": "Before Census Day"
+    }
+  ],
+  "columns": ["AcademicContigYrQtrCode", "AcademicYrName", "CensusDayStatus"],
+  "description": "Mock data for quarter information queries"
+}

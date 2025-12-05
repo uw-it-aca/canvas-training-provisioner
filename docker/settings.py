@@ -30,6 +30,10 @@ if os.getenv('ENV', 'localdev') == 'localdev':
     RESTCLIENTS_DAO_CACHE_CLASS = None
     RESTCLIENTS_CANVAS_ACCOUNT_ID = '123'
     MEDIA_ROOT = os.getenv('TRAINING_IMPORT_CSV_ROOT', '/app/csv')
+    EDW_HOST = os.getenv('EDW_HOST', 'localhost')
+    EDW_USER = os.getenv('EDW_USER', 'test_user')
+    EDW_PASS = os.getenv('EDW_PASS', 'test_password')
+    EDW_USE_MOCK_DATA = True
 else:
     TRAINING_IMPORT_CSV_DEBUG = False
     STORAGES = {
@@ -47,6 +51,12 @@ else:
             'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
         },
     }
+    EDW_HOST = os.getenv('EDW_HOST', 'localhost')
+    EDW_USER = os.getenv('EDW_USER')
+    EDW_PASS = os.getenv('EDW_PASS')
+    EDW_USE_MOCK_DATA = False
+    if not all([EDW_HOST, EDW_USER, EDW_PASS]):
+        raise ValueError("EDW connection parameters (EDW_HOST, EDW_USER, EDW_PASS) must be set in production environment")
 
 CACHES = {
     "default": {
