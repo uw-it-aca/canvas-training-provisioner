@@ -42,14 +42,15 @@ def title_vi_membership_candidates(training_course):
     Returns:
         list: integration_ids of eligible students
     """
-    eligible_members = []
+    eligible_members = set()
 
     # Use term_id to determine academic year
     term_parts = re.match(r"^AY(\d{4})-(\d{4})$", training_course.term_id)
     if not term_parts:
         raise ValueError(
             f"Invalid term_id format: {training_course.term_id}")
-    training_course_academic_year = f"{term_parts.group(1)}/{term_parts.group(2)}"
+    training_course_academic_year = \
+        f"{term_parts.group(1)}/{term_parts.group(2)}"
 
     # Note: overriding the first Title VI 101 course to only get Spring 2026,
     # but otherwise we should get all quarters in the academic year to avoid
@@ -62,14 +63,15 @@ def title_vi_membership_candidates(training_course):
     for quartercode in quarters_in_ay:
         quarter_info = get_info_for_quarter(quartercode)
         for student_id in get_students_from_registration(quartercode):
-            if student_id not in eligible_members:
-                eligible_members.append(student_id)
-        if quarter_info['censusDayStatus'] == 'Before Census Day':
+            eligible_members.add(student_id)
+        if quarter_info['CensusDayStatus'] == 'Before Census Day':
+            # We will only add students from the admissions table if
+            # census day has not yet occurred for the supplied quarter
+            # otherwise we would expect to find them via registration
             for student_id in get_students_from_admissions(quartercode):
-                if student_id not in eligible_members:
-                    eligible_members.append(student_id)
+                eligible_members.add(student_id)
 
-    return eligible_members
+    return list(eligible_members)
 
 
 def title_vi_booster_membership_candidates(training_course):
@@ -110,7 +112,7 @@ def get_quarters_in_ay(academic_year, current_quarter_code):
     if not ay_parts:
         raise ValueError(f"Invalid academic_year format: {academic_year}")
 
-    year1, year2 = ay_parts[1], ay_parts[2]
+    year1, year2 = ay_parts.group(1), ay_parts.group(2)
     quarters = [f"{year1}3", f"{year1}4", f"{year2}1", f"{year2}2"]
 
     if current_quarter_code is None:
@@ -251,12 +253,5 @@ def get_students_from_admissions(quarter_code):
             AND (s1.admitted_for_yr * 10 + s1.admitted_for_qtr) = @acaQtr
     """
 
-    quarter_info = get_info_for_quarter(quarter_code)
-    if quarter_info['CensusDayStatus'] != 'After Census Day':
-        # We will only return students from the admissions table if
-        # census day has not yet occurred for the supplied quarter
-        # otherwise we would expect to find them via registration
-        df = execute_edw_query(query)
-        return df['StudentNumber'].tolist()
-    else:
-        return []
+    df = execute_edw_query(query)
+    return df['StudentNumber'].tolist()

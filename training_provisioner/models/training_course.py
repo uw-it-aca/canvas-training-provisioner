@@ -8,7 +8,6 @@ from training_provisioner.dao.membership import (
     test_membership, title_vi_membership_candidates,
     title_vi_booster_membership_candidates)
 from importlib import import_module
-import json
 import logging
 
 
