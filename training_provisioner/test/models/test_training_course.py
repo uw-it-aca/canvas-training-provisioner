@@ -11,7 +11,7 @@ class TrainingCourseModelTest(TrainingCourseTestCase):
         TrainingCourse.objects.load_active_courses()
 
         courses = TrainingCourse.objects.active_courses()
-        self.assertEqual(courses.count(), 2)
+        self.assertEqual(courses.count(), 4)
 
     @patch('training_provisioner.models.'
            'training_course.TrainingCourse.get_course_membership')
