@@ -159,6 +159,18 @@ environmentVariablesSecrets:
     name: STORAGE_PROJECT_ID
     secretName: test-apps.studenttraining.uw.edu-shared-secrets
     secretKey: storage-project-id
+  edwHostname:
+    name: EDW_HOST
+    secretName: test-apps.studenttraining.uw.edu-edw-secrets
+    secretKey: hostname
+  edwUser:
+    name: EDW_USER
+    secretName: test-apps.studenttraining.uw.edu-edw-secrets
+    secretKey: user
+  edwPassword:
+    name: EDW_PASS
+    secretName: test-apps.studenttraining.uw.edu-edw-secrets
+    secretKey: password
   samlSPCert:
     name: SP_CERT
     secretName: test-apps.studenttraining.uw.edu-ic-certs
@@ -188,6 +200,15 @@ externalSecrets:
           property: studenttraining-account-id
         - name: studenttraining-api-token
           property: studenttraining-api-token
+    - name: test-apps.studenttraining.uw.edu-edw-secrets
+      externalKey: studenttraining/shared/edw-secrets
+      data:
+        - name: hostname
+          property: hostname
+        - name: user
+          property: user
+        - name: password
+          property: password
     - name: test-apps.studenttraining.uw.edu-gcs-credentials
       externalKey: studenttraining/shared/gcs-credentials
       data:
