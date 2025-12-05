@@ -39,6 +39,10 @@ class SectionManager(models.Manager):
 
         return sections
 
+    def get_models_for_training_course(self, training_course):
+        return self.filter(
+            course__training_course=training_course, deleted_date__isnull=True)
+
     def course_imports(self, course):
         pks = super(SectionManager, self).get_queryset().filter(
             course=course.id,
@@ -85,16 +89,8 @@ class Section(ImportResource):
     objects = SectionManager()
 
     @property
-    def term_id(self):
-        return self.training_course.term_id
-
-    @property
-    def status(self):
-        return self.training_course.course_status_name
-
-    @property
-    def account_id(self):
-        return self.training_course.account_id
+    def section_letter(self):
+        return self.course.section_letter(self.section_ordinal - 1)
 
     def json_data(self):
         return {

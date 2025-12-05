@@ -1,20 +1,11 @@
 # Copyright 2025 UW-IT, University of Washington
 # SPDX-License-Identifier: Apache-2.0
 
-
-from django.conf import settings
 from django.core.files.storage import default_storage
-from uw_canvas import Canvas
-from uw_canvas.accounts import Accounts
-from uw_canvas.admins import Admins
 from uw_canvas.courses import Courses
-from uw_canvas.roles import Roles
-from uw_canvas.terms import Terms
 from uw_canvas.sis_import import SISImport, CSV_FILES
 from uw_canvas.models import SISImport as SISImportModel
-from restclients_core.exceptions import DataFailureException
 from logging import getLogger
-from csv import reader
 from io import BytesIO
 import zipfile
 import json

@@ -5,6 +5,8 @@ from training_provisioner.test import TrainingCourseTestCase
 from training_provisioner.models.training_course import TrainingCourse
 from training_provisioner.builders.courses import CourseBuilder
 from training_provisioner.models.course import Course
+from training_provisioner.models.section import Section
+from training_provisioner.models.enrollment import Enrollment
 from django.core.files.storage import default_storage
 from django.test import override_settings
 import os
@@ -25,8 +27,7 @@ class CourseBuilderTest(TrainingCourseTestCase):
         }
     )
     def test_course_builder_with_data(self):
-        for training_course in TrainingCourse.objects.active_courses():
-            Course.objects.add_models_for_training_course(training_course)
+        TrainingCourse.objects.load_active_courses()
 
         courses = Course.objects.all()
         builder = CourseBuilder(courses)
@@ -39,3 +40,17 @@ class CourseBuilderTest(TrainingCourseTestCase):
             csv_data = f.readlines()
 
         self.assertEqual(len(csv_data) - 1, courses.count())
+
+        sections = Section.objects.all()
+        filename = os.path.join(csv_path, 'sections.csv')
+        with default_storage.open(filename, mode='r') as f:
+            csv_data = f.readlines()
+
+        self.assertEqual(len(csv_data) - 1, sections.count())
+
+        enrollments = Enrollment.objects.all()
+        filename = os.path.join(csv_path, 'enrollments.csv')
+        with default_storage.open(filename, mode='r') as f:
+            csv_data = f.readlines()
+
+        self.assertEqual(len(csv_data) - 1, enrollments.count())

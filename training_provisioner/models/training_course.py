@@ -2,12 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from django.db import models
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.utils.timezone import localtime
 from training_provisioner.dao.membership import (
     test_membership, title_vi_membership_candidates,
     title_vi_booster_membership_candidates)
 from importlib import import_module
 import json
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 class TrainingCourseManager(models.Manager):
@@ -21,6 +26,15 @@ class TrainingCourseManager(models.Manager):
             filter['term_id'] = term_id
 
         return self.filter(**filter)
+
+    def load_active_courses(self):
+        for training_course in self.active_courses():
+            logger.info(
+                "Loading training course "
+                f"{training_course.blueprint_course_id} "
+                f"for term {training_course.term_id}")
+
+            training_course.load_courses_and_enrollments()
 
 
 class TrainingCourse(models.Model):
@@ -36,8 +50,9 @@ class TrainingCourse(models.Model):
         (TITLE_VI_BOOSTER_MEMBERS, 'title_vi_booster_membership_candidates'),
     )
 
+    COURSE_MODEL = ('training_provisioner.models.course', 'Course')
     COURSE_MODELS = (
-        ('training_provisioner.models.course', 'Course'),
+        COURSE_MODEL,
         ('training_provisioner.models.section', 'Section'),
         ('training_provisioner.models.enrollment', 'Enrollment'),
     )
@@ -64,8 +79,10 @@ class TrainingCourse(models.Model):
         default=COURSE_STATUS_ACTIVE,
         choices=COURSE_STATUS_CHOICES)
     is_provisioned = models.BooleanField(default=False)
-    course_count = models.IntegerField(default=0)
-    section_count = models.IntegerField(default=0)
+    course_count = models.IntegerField(
+        default=1, validators=[MinValueValidator(1)])
+    section_count = models.IntegerField(
+        default=0, validators=[MinValueValidator(0)])
     creation_date = models.DateTimeField(auto_now=True)
     deleted_date = models.DateTimeField(null=True, blank=True)
 
@@ -82,6 +99,18 @@ class TrainingCourse(models.Model):
     @property
     def course_import_ids(self):
         return [f"{self.course_id(i)}" for i in range(self.course_count)]
+
+    def save(self, force_update=False, *args, **kwargs):
+        """
+        re-prioritize course import on change leaving it to the
+        admin interface to prevent read-only value changes
+        """
+        if self.pk:
+            model = self._dependent_model(*self.COURSE_MODEL)
+            model.objects.get_models_for_training_course(self).update(
+                priority=model.PRIORITY_DEFAULT)
+
+        super().save(force_update, *args, **kwargs)
 
     def course_id(self, index):
         ordinal = index + 1
@@ -122,10 +151,15 @@ class TrainingCourse(models.Model):
         return int(integration_id)
 
     def load_courses_and_enrollments(self):
-        for module_name, model_name in self.COURSE_MODELS:
-            module = import_module(module_name)
-            model = getattr(module, model_name)
+        for model in self._dependent_models():
             model.objects.add_models_for_training_course(self)
+
+    def _dependent_models(self):
+        for course_model in self.COURSE_MODELS:
+            yield self._dependent_model(*course_model)
+
+    def _dependent_model(self, module_name, model_name):
+        return getattr(import_module(module_name), model_name)
 
     def json_data(self):
         return {

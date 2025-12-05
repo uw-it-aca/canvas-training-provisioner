@@ -54,7 +54,8 @@ class EnrollmentManager(models.Manager):
                             f"from {drop_id}")
 
             except Enrollment.DoesNotExist:
-                pass
+                logger.info("Missing dropped enrollment: "
+                            f"{dropped_netid} from {training_course}")
 
         return enrollments
 
@@ -172,6 +173,10 @@ class EnrollmentManager(models.Manager):
 
         return enrollment
 
+    def get_models_for_training_course(self, training_course):
+        return self.filter(
+            course__training_course=training_course, deleted_date__isnull=True)
+
     def course_imports(self, course):
         pks = super(EnrollmentManager, self).get_queryset().filter(
             course=course.id,
@@ -217,15 +222,20 @@ class Enrollment(ImportResource):
 
     objects = EnrollmentManager()
 
+    @property
+    def is_active(self):
+        return self.deleted_date is None
+
     def json_data(self):
         return {
-            'course': self.course.json_data() if self.course else None,
+            'course': self.course.json_data(),
             'section': self.section.json_data() if self.section else None,
             'integration_id': self.integration_id,
             'created_date': localtime(self.created_date).isoformat(),
             'provisioned_date': localtime(
                 self.provisioned_date).isoformat() if (
                     self.provisioned_date) else None,
+            'is_active': self.is_active,
             'deleted_date': localtime(self.deleted_date).isoformat() if (
                 self.deleted_date) else None,
         }

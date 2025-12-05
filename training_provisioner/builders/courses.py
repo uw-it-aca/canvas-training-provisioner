@@ -6,7 +6,7 @@ from training_provisioner.models.section import Section
 from training_provisioner.models.enrollment import Enrollment
 from training_provisioner.builders import Builder
 from training_provisioner.csv.format import (
-    CourseCSV, SectionCSV, TermCSV, EnrollmentCSV)
+    CourseCSV, SectionCSV, EnrollmentCSV)
 
 
 class CourseBuilder(Builder):
@@ -41,14 +41,15 @@ class CourseBuilder(Builder):
             'blueprint_course_id':
                 course.training_course.blueprint_course_id,
             'term_id': course.training_course.term_id,
-            'account_id': course.training_course.account_id
+            'account_id': course.training_course.account_id,
+            'status': course.status
         }
 
     def _section_data(self, section):
         return {
             'section_id': section.section_id,
             'course_id': section.course.course_id,
-            'name': f"Section {section.section_ordinal}"
+            'name': f"Section {section.section_letter}"
         }
 
     def _enrollment_data(self, enrollment):
@@ -57,6 +58,5 @@ class CourseBuilder(Builder):
             'section_id': enrollment.section.section_id if (
                 enrollment.section) else None,
             'integration_id': enrollment.integration_id,
-            'status': 'active' if (
-                enrollment.deleted_date is None) else 'inactive'
+            'status': 'active' if enrollment.is_active else 'inactive'
         }

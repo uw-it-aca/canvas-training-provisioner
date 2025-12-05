@@ -35,6 +35,10 @@ class CourseManager(models.Manager):
     def get_courses_by_priority(self, priority):
         return self.filter(priority=priority, deleted_date__isnull=True)
 
+    def get_models_for_training_course(self, training_course):
+        return self.filter(
+            training_course=training_course, deleted_date__isnull=True)
+
     def queue_by_priority(self, priority):
         kwargs = {
             'priority': priority,
@@ -124,9 +128,9 @@ class Course(ImportResource):
                     self.training_course.section_count) else None
 
     def _section_id(self, index):
-        return (f"{self.course_id}-{self._section_letter(index)}-")
+        return (f"{self.course_id}-{self.section_letter(index)}-")
 
-    def _section_letter(self, index):
+    def section_letter(self, index):
         return self._index_to_section(index, '')
 
     def _index_to_section(self, index, section):

@@ -70,6 +70,18 @@ class SAMLReadOnlyAdminModel(AbstractSAMLReadOnlyAdminModel, admin.ModelAdmin):
     pass
 
 
+class SAMLAdminTrainingCourseModel(SAMLAdminModel):
+    readonly_fields = ['creation_date', 'deleted_date']
+
+    def get_readonly_fields(self, request, obj=None):
+        dependent_fields = []
+
+        if obj and obj.pk:  # editing an existing object
+            dependent_fields = ['course_count', 'membership_type']
+
+        return self.readonly_fields + dependent_fields
+
+
 admin_site = SAMLAdminSite(name='SAMLAdmin')
-admin_site.register(TrainingCourse, SAMLAdminModel)
+admin_site.register(TrainingCourse, SAMLAdminTrainingCourseModel)
 admin_site.register(Import, SAMLReadOnlyAdminModel)
