@@ -130,3 +130,6 @@ coverage
 
 # lighthouse
 .lighthouseci
+
+# Local dev
+.localdev

@@ -1,0 +1,9 @@
+{
+  "data": [
+    {"StudentNumber": "1234567"},
+    {"StudentNumber": "2345678"},
+    {"StudentNumber": "3456789"}
+  ],
+  "columns": ["StudentNumber"],
+  "description": "Mock data for registration-based student queries"
+}

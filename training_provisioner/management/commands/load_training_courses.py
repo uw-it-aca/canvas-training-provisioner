@@ -10,4 +10,11 @@ class Command(BaseCommand):
     help = "Load Canvas Training Courses"
 
     def handle(self, *args, **options):
-        TrainingCourse.objects.load_active_courses()
+        # Get active courses and sort by term_id to process earlier academic
+        # years first. This prevents race conditions when checking for
+        # previous enrollments
+        active_courses = (
+            TrainingCourse.objects.active_courses().order_by('term_id'))
+
+        for training_course in active_courses:
+            training_course.load_courses_and_enrollments()
