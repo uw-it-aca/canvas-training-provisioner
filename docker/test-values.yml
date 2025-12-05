@@ -188,6 +188,12 @@ externalSecrets:
           property: studenttraining-account-id
         - name: studenttraining-api-token
           property: studenttraining-api-token
+        - name: proxy-id-key
+          property: proxy-id-key
+        - name: proxy-id
+          property: proxy-id
+        - name: proxy-hostname
+          property: proxy-hostname
     - name: test-apps.studenttraining.uw.edu-gcs-credentials
       externalKey: studenttraining/shared/gcs-credentials
       data:
