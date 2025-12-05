@@ -1,0 +1,183 @@
+ingress:
+  enabled: true
+  tls:
+    studenttraining:
+      secretName: apps.studenttraining.uw.edu-ingress-cert
+      hosts:
+        - apps.studenttraining.uw.edu
+  hosts:
+    studenttraining:
+      host: apps.studenttraining.uw.edu
+      paths:
+        - "/"
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+
+lifecycle:
+  enabled: true
+  preStop:
+    enabled: true
+affinity:
+   podsSpanNodes: true
+readiness:
+  enabled: true
+securityPolicy:
+  enabled: false
+
+externalService:
+  enabled: true
+  name: studenttraining-db-service
+  type: ClusterIP
+  serviceAddress: 172.18.1.43
+  servicePort: 5432
+database:
+  engine: postgres
+  name: studenttraining_provisioner_prod
+  hostname: studenttraining-db-service
+  secretName: apps.studenttraining.uw.edu-sql-secrets
+
+repo: studenttraining
+instance: prod
+namespace:
+  enabled: true
+
+memcached:
+  enabled: false
+  replicaCount: 1
+  updateStrategy:
+    type: RollingUpdate
+
+gcsCredentials:
+  mounted: true
+  secretName: apps.studenttraining.uw.edu-gcs-credentials
+
+cronjob:
+  enabled: false
+  jobs:
+    - name: load-training-courses
+      schedule: "40 2 * * 1-5"
+      command: ["/scripts/management_command.sh"]
+      args: ["load_training_courses"]
+    - name: import-training-courses
+      schedule: "40 3 * * 1-5"
+      command: ["/scripts/management_command.sh"]
+      args: ["import_training_courses"]
+
+daemon:
+  enabled: true
+  daemons:
+    - name: monitor-imports
+      replicaCount: 1
+      command: ["/scripts/management_daemon.sh"]
+      args: ["--delay", "30", "monitor_imports"]
+
+certs:
+  mounted: true
+  certPath: /certs/apps.studenttraining.uw.edu-ic.cert
+  keyPath: /certs/apps.studenttraining.uw.edu-ic.key
+  secretName: apps.studenttraining.uw.edu-ic-certs
+
+mountedSecrets:
+  enabled: true
+  secretName: apps.studenttraining.uw.edu-secrets
+  mountPath: /app/training_provisioner/data
+  items:
+    - key: membership.json
+      path: membership.json
+
+environmentVariables:
+  - name: ENV
+    value: prod
+
+  - name: STUDENTTRAINING_ACCOUNT_DOMAIN
+    value: uwstudenttraining.instructure.com
+  - name: CANVAS_ACCOUNT_DOMAIN
+    value: uw.instructure.com
+
+  - name: CANVAS_ENV
+    value: EVAL
+  - name: CANVAS_TIMEOUT
+    value: "20"
+
+  - name: AUTH
+    value: SAML
+  - name: SAML_ENTITY_ID
+    value: https://apps.studenttraining.uw.edu/saml2
+  - name: CLUSTER_CNAME
+    value: apps.studenttraining.uw.edu
+
+environmentVariablesSecrets:
+  djangoSecret:
+    name: DJANGO_SECRET
+    secretName: apps.studenttraining.uw.edu-secrets
+    secretKey: django-secret
+  studenttrainingAccountID:
+    name: CANVAS_ACCOUNT_ID
+    secretName: apps.studenttraining.uw.edu-shared-secrets
+    secretKey: studenttraining-account-id
+  studenttrainingAPIToken:
+    name: CANVAS_OAUTH_BEARER
+    secretName: apps.studenttraining.uw.edu-shared-secrets
+    secretKey: studenttraining-api-token
+  storageBucketName:
+    name: STORAGE_BUCKET_NAME
+    secretName: apps.studenttraining.uw.edu-secrets
+    secretKey: storage-bucket-name
+  storageProjectId:
+    name: STORAGE_PROJECT_ID
+    secretName: apps.studenttraining.uw.edu-shared-secrets
+    secretKey: storage-project-id
+  samlSPCert:
+    name: SP_CERT
+    secretName: apps.studenttraining.uw.edu-ic-certs
+    secretKey: apps.studenttraining.uw.edu-ic.cert
+  samlIDPCert:
+    name: IDP_CERT
+    secretName: apps.studenttraining.uw.edu-uw-idp-cert
+    secretKey: uw-idp-cert
+
+externalSecrets:
+  enabled: true
+  secrets:
+    - name: apps.studenttraining.uw.edu-shared-secrets
+      externalKey: studenttraining/shared/secrets
+      data:
+        - name: storage-project-id
+          property: storage-project-id
+        - name: studenttraining-account-id
+          property: studenttraining-account-id
+        - name: studenttraining-api-token
+          property: studenttraining-api-token
+    - name: apps.studenttraining.uw.edu-gcs-credentials
+      externalKey: studenttraining/shared/gcs-credentials
+      data:
+        - name: credentials.json
+          property: credentials.json
+    - name: apps.studenttraining.uw.edu-secrets
+      externalKey: studenttraining/prod/secrets
+      data:
+        - name: django-secret
+          property: django-secret
+        - name: storage-bucket-name
+          property: storage-bucket-name
+        - name: membership.json
+          property: membership.json
+    - name: apps.studenttraining.uw.edu-sql-secrets
+      externalKey: studenttraining/shared/sql-secrets
+      data:
+        - name: username
+          property: username
+        - name: password
+          property: password
+    - name: apps.studenttraining.uw.edu-ic-certs
+      externalKey: studenttraining/prod/ic-certs
+      data:
+        - name: apps.studenttraining.uw.edu-ic.cert
+          property: apps.studenttraining.uw.edu-ic.cert
+        - name: apps.studenttraining.uw.edu-ic.key
+          property: apps.studenttraining.uw.edu-ic.key
+    - name: apps.studenttraining.uw.edu-uw-idp-cert
+      externalKey: idp-cert
+      data:
+        - name: uw-idp-cert
+          property: cert

@@ -8,7 +8,7 @@ from mock import patch
 
 class TrainingCourseModelTest(TrainingCourseTestCase):
     def test_load_active_courses(self):
-        TrainingCourse.objects.load_active_courses()
+        self.call_load_training_courses()
 
         courses = TrainingCourse.objects.active_courses()
         self.assertEqual(courses.count(), 2)

@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from training_provisioner.test import TrainingCourseTestCase
-from training_provisioner.models.training_course import TrainingCourse
 from training_provisioner.builders.courses import CourseBuilder
 from training_provisioner.models.course import Course
 from training_provisioner.models.section import Section
@@ -27,7 +26,7 @@ class CourseBuilderTest(TrainingCourseTestCase):
         }
     )
     def test_course_builder_with_data(self):
-        TrainingCourse.objects.load_active_courses()
+        self.call_load_training_courses()
 
         courses = Course.objects.all()
         builder = CourseBuilder(courses)
