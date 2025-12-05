@@ -21,5 +21,6 @@ class EnrollmentCourseMismatch(Exception):
 class EmptyQueueException(Exception):
     pass
 
+
 class DataAccessException(Exception):
     pass

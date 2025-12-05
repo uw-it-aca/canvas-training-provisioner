@@ -38,24 +38,11 @@ def title_vi_membership_candidates(training_course):
 
     Args:
         training_course (TrainingCourse): training course object
-    
+
     Returns:
         list: integration_ids of eligible students
     """
     eligible_members = []
-
-    """
-    # Use this if we are getting an SIS ID, otherwise we'll use term_id
-    training_course_parts = re.match(r"^AY-(\d{4})-(\d{4})-(.*)",
-                                     training_course.course_name)
-    if not training_course_parts:
-        raise ValueError(
-            f"Invalid training_course_id format: "
-            f"{training_course.course_name}")
-    # Relying on the SIS ID to determine academic year
-    training_course_academic_year = f"{training_course_parts[1]}/" \
-        f"{training_course_parts[2]}"
-    """
 
     # Use term_id to determine academic year
     term_parts = re.match(r"^AY(\d{4})-(\d{4})$", training_course.term_id)
@@ -64,15 +51,14 @@ def title_vi_membership_candidates(training_course):
             f"Invalid term_id format: {training_course.term_id}")
     training_course_academic_year = f"{term_parts[1]}/{term_parts[2]}"
 
-    # Note: we will override the first Title VI 101 course to only get Spring 2026,
+    # Note: overriding the first Title VI 101 course to only get Spring 2026,
     # but otherwise we should get all quarters in the academic year to avoid
     # dropping students who stop attending later in the year...
     start_quarter = None
     if training_course_academic_year == '2025/2026':
         start_quarter = 20262  # Spring 2026 only for AY25-26 course
-    quarters_in_ay = get_quarters_in_ay(
-        training_course_academic_year,
-        start_quarter)
+    quarters_in_ay = get_quarters_in_ay(training_course_academic_year,
+                                        start_quarter)
     for quartercode in quarters_in_ay:
         quarter_info = get_info_for_quarter(quartercode)
         for student_id in get_students_from_registration(quartercode):
@@ -107,12 +93,14 @@ def get_quarters_in_ay(academic_year, current_quarter_code):
     on or after the current quarter, if a quarter code is specified or all
     quarters if not.
 
-    NOTE: At a project level we will use official UW academic year (SUM-SPR)
-        See: https://metadata.uw.edu/catalog/viewitem/Term/studentdata.academicyear
+    NOTE: At a project level we will use official UW academic year
+    (SUM-SPR)
+    See: https://metadata.uw.edu/catalog/viewitem/Term/studentdata.academicyear
 
     Args:
         academic_year (str): academic year in "YYYY/YYYY" format
-        current_quarter_code (str|int|None): current quarter code like "20254"
+        current_quarter_code (str|int|None): current quarter code like
+            "20254"
 
     Returns:
         list: quarter codes in the academic year on or after current quarter,
@@ -134,8 +122,10 @@ def get_quarters_in_ay(academic_year, current_quarter_code):
         start_idx = quarters.index(str(current_quarter_code))
         return quarters[start_idx:]
     except ValueError:
-        # Current quarter not in this AY - return empty if it's past, all if before
-        return [] if int(current_quarter_code) > int(quarters[-1]) else quarters
+        # Current quarter not in this AY - return empty if it's past,
+        # all if before
+        return ([] if int(current_quarter_code) > int(quarters[-1])
+                else quarters)
 
 
 def get_current_quarter_info():
@@ -188,8 +178,10 @@ def get_info_for_quarter(quarter_code):
             d.AcademicContigYrQtrCode,
             d.AcademicYrName,
             CASE
-                WHEN CONVERT(DATE, GETDATE()) < cd.CalendarDate THEN 'Before Census Day'
-                WHEN CONVERT(DATE, GETDATE()) = cd.CalendarDate THEN 'On Census Day'
+                WHEN CONVERT(DATE, GETDATE()) < cd.CalendarDate
+                    THEN 'Before Census Day'
+                WHEN CONVERT(DATE, GETDATE()) = cd.CalendarDate
+                    THEN 'On Census Day'
                 ELSE 'After Census Day'
             END AS CensusDayStatus
         FROM EDWPresentation.sec.dimDate d

@@ -133,7 +133,7 @@ class TrainingCourse(models.Model):
         elif '101' in course_name_lower:
             return '101'
         return None
-    
+
     def get_course_id_for_member(self, integration_id):
         return self.course_id(self._course_index_for_member(integration_id))
 

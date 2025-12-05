@@ -3,7 +3,7 @@
 
 from django.db import models
 from django.db.models import F
-from training_provisioner.models import Import, ImportResource
+from training_provisioner.models import ImportResource
 from training_provisioner.models.course import Course
 from training_provisioner.models.section import Section
 from training_provisioner.exceptions import (
@@ -29,7 +29,8 @@ class EnrollmentManager(models.Manager):
         filtered_candidates = self._filter_candidates_by_course_type(
             membership_candidates, training_course)
 
-        for studentno in filtered_candidates:  # Will be integration_id in Canvas import
+        # Studentno will be integration_id in Canvas import
+        for studentno in filtered_candidates:
             try:
                 enrollment = self._add_enrollment(studentno, training_course)
                 enrollments.append(enrollment)
@@ -48,20 +49,22 @@ class EnrollmentManager(models.Manager):
                 enrollment.priority = ImportResource.PRIORITY_DEFAULT
                 enrollment.save()
                 enrollments.append(enrollment)
-                drop_id = enrollment.section.section_id if (
-                    enrollment.section) else enrollment.course.course_id
+                drop_id = (enrollment.section.section_id
+                           if enrollment.section
+                           else enrollment.course.course_id)
                 logger.info(f"delete enrollment {dropped_studentno} "
                             f"from {drop_id}")
 
             except Enrollment.DoesNotExist:
                 logger.info("Missing dropped enrollment: "
-                            f"{dropped_netid} from {training_course}")
+                            f"{dropped_studentno} from {training_course}")
 
         return enrollments
 
     def _filter_candidates_by_course_type(self, candidates, training_course):
         """
-        Filter candidate list based on course type and previous enrollment history.
+        Filter candidate list based on course type and previous enrollment
+        history.
 
         Args:
             candidates (list): List of student integration_ids
@@ -74,54 +77,67 @@ class EnrollmentManager(models.Manager):
 
         if course_type is None:
             # If we can't determine course type, return all candidates
-            logger.warning(f"Could not determine course type for {training_course.course_name}")
+            logger.warning(f"Could not determine course type for "
+                           f"{training_course.course_name}")
             return candidates
 
         filtered_candidates = []
 
         for studentno in candidates:
-            has_previous_101_enrollment = self._has_previous_101_enrollment(studentno, training_course)
+            has_previous_101_enrollment = self._has_previous_101_enrollment(
+                studentno, training_course)
 
             if course_type == '101':
-                # For 101 courses, exclude students who already have a previous 101 enrollment from different academic year
+                # For 101 courses, exclude students who already have a
+                # previous 101 enrollment from different academic year
                 if not has_previous_101_enrollment:
                     filtered_candidates.append(studentno)
                 else:
-                    logger.debug(f"Excluding {studentno} from 101 course - has previous 101 enrollment from different academic year")
+                    logger.debug(f"Excluding {studentno} from 101 course - "
+                                 f"has previous 101 enrollment from different "
+                                 f"academic year")
 
             elif course_type == 'booster':
-                # For booster courses, only include students who have a previous 101 enrollment from different academic year
+                # For booster courses, only include students who have a
+                # previous 101 enrollment from different academic year
                 if has_previous_101_enrollment:
                     filtered_candidates.append(studentno)
                 else:
-                    logger.debug(f"Excluding {studentno} from booster course - no previous 101 enrollment from different academic year")
+                    logger.debug(f"Excluding {studentno} from booster "
+                                 f"course - no previous 101 enrollment from "
+                                 f"different academic year")
             else:
                 # For unknown course types, include all candidates
                 filtered_candidates.append(studentno)
 
-        logger.info(f"Filtered candidates for {training_course.course_name} ({course_type}): "
-                   f"{len(filtered_candidates)} of {len(candidates)} candidates")
+        logger.info(f"Filtered candidates for "
+                    f"{training_course.course_name} ({course_type}): "
+                    f"{len(filtered_candidates)} of {len(candidates)} "
+                    f"candidates")
 
         return filtered_candidates
 
     def _has_previous_101_enrollment(self, studentno, current_training_course):
         """
-        Check if a student has any previous active enrollment in a '101' type course
-        from a DIFFERENT academic year than the current training course.
+        Check if a student has any previous active enrollment in a '101'
+        type course from a DIFFERENT academic year than the current
+        training course.
 
         Args:
             studentno (str): Student number (integration_id to Canvas)
             current_training_course: Current TrainingCourse instance
 
         Returns:
-            bool: True if student has previous 101 enrollment from different academic year, False otherwise
+            bool: True if student has previous 101 enrollment from different
+            academic year, False otherwise
         """
 
         # Get current term_id (e.g., 'AY2025-2026')
         current_term_id = current_training_course.term_id
 
-        # Get all training courses with '101' in the course_name where student has active enrollment
-        # Exclude enrollments from the same term_id (same academic year)
+        # Get all training courses with '101' in the course_name where
+        # student has active enrollment. Exclude enrollments from the same
+        # term_id (same academic year)
         previous_101_enrollments = self.filter(
             integration_id=studentno,
             deleted_date__isnull=True,
@@ -137,23 +153,25 @@ class EnrollmentManager(models.Manager):
             course_id = training_course.get_course_id_for_member(studentno)
             course = Course.objects.get(course_id=course_id)
             section_id = course.get_section_id_for_member(studentno)
-            section = Section.objects.get(section_id=section_id) if (
-                section_id is not None) else None
-            priority = Enrollment.PRIORITY_DEFAULT
+            section = (Section.objects.get(section_id=section_id)
+                       if section_id is not None else None)
+            # priority = Enrollment.PRIORITY_DEFAULT
 
             enrollment = Enrollment.objects.get(
-                integration_id=studentno, course__training_course=training_course)
+                integration_id=studentno,
+                course__training_course=training_course)
 
             if not (enrollment.course == course
                     and enrollment.section == section):
                 orig_course_id = enrollment.course.course_id
-                orig_section_id = enrollment.section.section_id if (
-                    enrollment.section) else "None"
+                orig_section_id = (enrollment.section.section_id
+                                   if enrollment.section else "None")
                 raise EnrollmentCourseMismatch(
                     f"Enrollment for {studentno} in "
                     f"{training_course.course_id_prefix} CHANGED: course from "
                     f"{orig_course_id} to {course_id}, section from "
-                    f"{orig_section_id} to {section_id}: enrollment unchanged")
+                    f"{orig_section_id} to {section_id}: enrollment "
+                    f"unchanged")
 
         except Course.DoesNotExist:
             raise MissingCourseException(
@@ -174,8 +192,8 @@ class EnrollmentManager(models.Manager):
         return enrollment
 
     def get_models_for_training_course(self, training_course):
-        return self.filter(
-            course__training_course=training_course, deleted_date__isnull=True)
+        return self.filter(course__training_course=training_course,
+                           deleted_date__isnull=True)
 
     def course_imports(self, course):
         pks = super(EnrollmentManager, self).get_queryset().filter(
