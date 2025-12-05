@@ -49,7 +49,7 @@ def title_vi_membership_candidates(training_course):
     if not term_parts:
         raise ValueError(
             f"Invalid term_id format: {training_course.term_id}")
-    training_course_academic_year = f"{term_parts[1]}/{term_parts[2]}"
+    training_course_academic_year = f"{term_parts.group(1)}/{term_parts.group(2)}"
 
     # Note: overriding the first Title VI 101 course to only get Spring 2026,
     # but otherwise we should get all quarters in the academic year to avoid
