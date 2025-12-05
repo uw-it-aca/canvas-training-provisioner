@@ -45,7 +45,7 @@ class EDWConnection:
     def _get_connection_string(self):
         """Build the SQLAlchemy connection string for EDW."""
         return (f"mssql+pymssql://{quote_plus(self.user)}:"
-                f"{quote_plus(self.password)}@{self.host}")
+                f"{quote_plus(self.password)}@{self.host}:1433")
 
     def execute_query(self, query):
         """

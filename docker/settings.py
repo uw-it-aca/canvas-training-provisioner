@@ -51,7 +51,7 @@ else:
             'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
         },
     }
-    EDW_HOST = os.getenv('EDW_HOST')
+    EDW_HOST = os.getenv('EDW_HOST', 'localhost')
     EDW_USER = os.getenv('EDW_USER')
     EDW_PASS = os.getenv('EDW_PASS')
     EDW_USE_MOCK_DATA = False
