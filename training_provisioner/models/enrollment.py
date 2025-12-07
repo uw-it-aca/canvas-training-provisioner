@@ -73,13 +73,6 @@ class EnrollmentManager(models.Manager):
         Returns:
             list: Filtered list of candidates
         """
-        course_type = training_course.get_course_type()
-
-        if course_type is None:
-            # If we can't determine course type, return all candidates
-            logger.warning(f"Could not determine course type for "
-                           f"{training_course.course_name}")
-            return candidates
 
         filtered_candidates = []
 
@@ -87,7 +80,7 @@ class EnrollmentManager(models.Manager):
             has_previous_101_enrollment = self._has_previous_101_enrollment(
                 studentno, training_course)
 
-            if course_type == '101':
+            if training_course.course_type == '101':
                 # For 101 courses, exclude students who already have a
                 # previous 101 enrollment from different academic year
                 if not has_previous_101_enrollment:
@@ -97,7 +90,7 @@ class EnrollmentManager(models.Manager):
                                  f"has previous 101 enrollment from different "
                                  f"academic year")
 
-            elif course_type == 'booster':
+            elif training_course.course_type == 'booster':
                 # For booster courses, only include students who have a
                 # previous 101 enrollment from different academic year
                 if has_previous_101_enrollment:
@@ -111,7 +104,8 @@ class EnrollmentManager(models.Manager):
                 filtered_candidates.append(studentno)
 
         logger.info(f"Filtered candidates for "
-                    f"{training_course.course_name} ({course_type}): "
+                    f"{training_course.course_name} "
+                    f"({training_course.course_type}): "
                     f"{len(filtered_candidates)} of {len(candidates)} "
                     f"candidates")
 
