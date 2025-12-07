@@ -129,13 +129,13 @@ class EnrollmentManager(models.Manager):
         # Get current term_id (e.g., 'AY2025-2026')
         current_term_id = current_training_course.term_id
 
-        # Get all training courses with '101' in the course_name where
+        # Get all training courses with course_type='101' where
         # student has active enrollment. Exclude enrollments from the same
         # term_id (same academic year)
         previous_101_enrollments = self.filter(
             integration_id=studentno,
             deleted_date__isnull=True,
-            course__training_course__course_name__icontains='101'
+            course__training_course__course_type='101'
         ).exclude(
             course__training_course__term_id=current_term_id
         ).exists()
