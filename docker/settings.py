@@ -1,0 +1,65 @@
+from .base_settings import *
+from google.oauth2 import service_account
+import os
+
+STUDENTTRAINING_ADMIN_GROUP='u_acadev_studenttraining_admins'
+
+INSTALLED_APPS += [
+    'training_provisioner.apps.TrainingProvisionerConfig',
+    'rest_framework.authtoken',
+]
+
+CANVAS_ACCOUNT_DOMAIN = os.getenv('CANVAS_ACCOUNT_DOMAIN')
+RESTCLIENTS_CANVAS_HOST = ("https://"
+                           f"{os.getenv('STUDENTTRAINING_ACCOUNT_DOMAIN')}")
+
+if os.getenv('AUTH', 'NONE') == 'SAML_MOCK':
+    MOCK_SAML_ATTRIBUTES = {
+        'uwnetid': ['jstaff'],
+        'affiliations': ['employee', 'member'],
+        'eppn': ['jstaff@washington.edu'],
+        'scopedAffiliations': [
+            'employee@washington.edu', 'member@washington.edu'],
+        'isMemberOf': ['u_test_group', 'u_test_another_group',
+                       'u_acadev_studenttraining_admins'],
+    }
+
+if os.getenv('ENV', 'localdev') == 'localdev':
+    DEBUG = True
+    TRAINING_IMPORT_CSV_DEBUG = True
+    RESTCLIENTS_DAO_CACHE_CLASS = None
+    RESTCLIENTS_CANVAS_ACCOUNT_ID = '123'
+    MEDIA_ROOT = os.getenv('TRAINING_IMPORT_CSV_ROOT', '/app/csv')
+    EDW_HOST = os.getenv('EDW_HOST', 'localhost')
+    EDW_USER = os.getenv('EDW_USER', 'test_user')
+    EDW_PASS = os.getenv('EDW_PASS', 'test_password')
+    EDW_USE_MOCK_DATA = True
+else:
+    TRAINING_IMPORT_CSV_DEBUG = False
+    STORAGES = {
+        'default': {
+            'BACKEND': 'storages.backends.gcloud.GoogleCloudStorage',
+            'OPTIONS': {
+                'project_id': os.getenv('STORAGE_PROJECT_ID', ''),
+                'bucket_name': os.getenv('STORAGE_BUCKET_NAME', ''),
+                'location': os.path.join(os.getenv('STORAGE_DATA_ROOT', '')),
+                'credentials': service_account.Credentials.from_service_account_file(
+                    '/gcs/credentials.json'),
+            }
+        },
+        'staticfiles': {
+            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        },
+    }
+    EDW_HOST = os.getenv('EDW_HOST', 'localhost')
+    EDW_USER = os.getenv('EDW_USER')
+    EDW_PASS = os.getenv('EDW_PASS')
+    EDW_USE_MOCK_DATA = False
+    if not all([EDW_HOST, EDW_USER, EDW_PASS]):
+        raise ValueError("EDW connection parameters (EDW_HOST, EDW_USER, EDW_PASS) must be set in production environment")
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache"
+    }
+}

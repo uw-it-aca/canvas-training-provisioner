@@ -1,0 +1,8 @@
+[run]
+source = canvas-training-provisioner
+parallel = True
+
+[paths]
+source =
+  training_provisioner/
+  /app/training_provisioner/
