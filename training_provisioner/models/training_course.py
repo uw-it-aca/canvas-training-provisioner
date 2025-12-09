@@ -164,8 +164,8 @@ class TrainingCourse(models.Model):
             "blueprint_course_id": self.blueprint_course_id,
             "term_id": self.term_id,
             "account_id": self.account_id,
-            "membership_type": self.MEMBERSHIP_CHOICES[
-                self.membership_type][1],
+            "membership_type": self.get_membership_type_display(),
+            "course_type": self.get_course_type_display(),
             "course_status": self.course_status,
             "course_status_name": self.course_status_name,
             "course_count": self.course_count,

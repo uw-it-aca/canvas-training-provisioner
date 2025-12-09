@@ -50,6 +50,9 @@ class EnrollmentManager(models.Manager):
                 enrollment.priority = ImportResource.PRIORITY_DEFAULT
                 enrollment.save()
                 enrollments.append(enrollment)
+
+                self._trigger_course_import(enrollment.course)
+
                 drop_id = (enrollment.section.section_id
                            if enrollment.section
                            else enrollment.course.course_id)
@@ -182,10 +185,17 @@ class EnrollmentManager(models.Manager):
         except Enrollment.DoesNotExist:
             enrollment = Enrollment.objects.create(
                 integration_id=studentno, course=course, section=section)
+            self._trigger_course_import(course)
             logger.info(f"create enrollment {studentno} in "
                         f"{section_id if section_id else course_id}")
 
         return enrollment
+
+    def _trigger_course_import(self, course):
+        # bump course import priority to signal cascading import
+        if course.priority == Course.PRIORITY_NONE:
+            course.priority = course.PRIORITY_DEFAULT
+            course.save()
 
     def get_models_for_training_course(self, training_course):
         return self.filter(course__training_course=training_course,
