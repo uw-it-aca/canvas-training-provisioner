@@ -57,10 +57,8 @@ class EnrollmentModelTest(TrainingCourseTestCase):
         Section.objects.update(priority=Section.PRIORITY_NONE)
         Enrollment.objects.update(priority=Enrollment.PRIORITY_NONE)
 
-        membership = self.get_membership()
-        membership.append('5432123')
-
-        mock_membership.return_value = membership
+        student_number = '5432123'
+        mock_membership.return_value = self.get_membership() + [student_number]
 
         Enrollment.objects.add_models_for_training_course(self.training_course)
 
@@ -68,7 +66,11 @@ class EnrollmentModelTest(TrainingCourseTestCase):
 
         enrollments = Enrollment.objects.filter(priority__gt=0)
         self.assertEqual(enrollments.count(), 1)
-        self.assertTrue(enrollments[0].is_active)
+
+        enrollment = enrollments[0]
+        self.assertTrue(enrollment.priority > Enrollment.PRIORITY_NONE)
+        self.assertEqual(enrollment.integration_id, student_number)
+        self.assertTrue(enrollment.is_active)
 
     @patch('training_provisioner.models.'
            'training_course.TrainingCourse.get_course_membership')
@@ -78,6 +80,7 @@ class EnrollmentModelTest(TrainingCourseTestCase):
         Enrollment.objects.update(priority=Enrollment.PRIORITY_NONE)
 
         membership = self.get_membership()
+        student_number = membership[2]
         del membership[2]
 
         mock_membership.return_value = membership
@@ -88,7 +91,10 @@ class EnrollmentModelTest(TrainingCourseTestCase):
 
         enrollments = Enrollment.objects.filter(priority__gt=0)
         self.assertEqual(enrollments.count(), 1)
-        self.assertFalse(enrollments[0].is_active)
+
+        enrollment = enrollments[0]
+        self.assertEqual(enrollment.integration_id, student_number)
+        self.assertFalse(enrollment.is_active)
 
     def test_enrollment_change_error(self):
         integration_id = '5432101'
