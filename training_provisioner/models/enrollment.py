@@ -6,6 +6,7 @@ from django.db.models import F
 from training_provisioner.models import ImportResource
 from training_provisioner.models.course import Course
 from training_provisioner.models.section import Section
+from training_provisioner.models.training_course import TrainingCourse
 from training_provisioner.exceptions import (
     MissingCourseException, MissingSectionException, EnrollmentCourseMismatch)
 from django.utils.timezone import localtime
@@ -73,13 +74,6 @@ class EnrollmentManager(models.Manager):
         Returns:
             list: Filtered list of candidates
         """
-        course_type = training_course.get_course_type()
-
-        if course_type is None:
-            # If we can't determine course type, return all candidates
-            logger.warning(f"Could not determine course type for "
-                           f"{training_course.course_name}")
-            return candidates
 
         filtered_candidates = []
 
@@ -87,7 +81,7 @@ class EnrollmentManager(models.Manager):
             has_previous_101_enrollment = self._has_previous_101_enrollment(
                 studentno, training_course)
 
-            if course_type == '101':
+            if training_course.course_type == TrainingCourse.COURSE_TYPE_101:
                 # For 101 courses, exclude students who already have a
                 # previous 101 enrollment from different academic year
                 if not has_previous_101_enrollment:
@@ -97,7 +91,8 @@ class EnrollmentManager(models.Manager):
                                  f"has previous 101 enrollment from different "
                                  f"academic year")
 
-            elif course_type == 'booster':
+            elif training_course.course_type == \
+                    TrainingCourse.COURSE_TYPE_BOOSTER:
                 # For booster courses, only include students who have a
                 # previous 101 enrollment from different academic year
                 if has_previous_101_enrollment:
@@ -111,7 +106,8 @@ class EnrollmentManager(models.Manager):
                 filtered_candidates.append(studentno)
 
         logger.info(f"Filtered candidates for "
-                    f"{training_course.course_name} ({course_type}): "
+                    f"{training_course.course_name} "
+                    f"({training_course.course_type}): "
                     f"{len(filtered_candidates)} of {len(candidates)} "
                     f"candidates")
 
@@ -135,13 +131,13 @@ class EnrollmentManager(models.Manager):
         # Get current term_id (e.g., 'AY2025-2026')
         current_term_id = current_training_course.term_id
 
-        # Get all training courses with '101' in the course_name where
+        # Get all training courses with course_type='101' where
         # student has active enrollment. Exclude enrollments from the same
         # term_id (same academic year)
         previous_101_enrollments = self.filter(
             integration_id=studentno,
             deleted_date__isnull=True,
-            course__training_course__course_name__icontains='101'
+            course__training_course__course_type=TrainingCourse.COURSE_TYPE_101
         ).exclude(
             course__training_course__term_id=current_term_id
         ).exists()
