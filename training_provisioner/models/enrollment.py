@@ -6,6 +6,7 @@ from django.db.models import F
 from training_provisioner.models import ImportResource
 from training_provisioner.models.course import Course
 from training_provisioner.models.section import Section
+from training_provisioner.models.training_course import TrainingCourse
 from training_provisioner.exceptions import (
     MissingCourseException, MissingSectionException, EnrollmentCourseMismatch)
 from django.utils.timezone import localtime
@@ -80,7 +81,7 @@ class EnrollmentManager(models.Manager):
             has_previous_101_enrollment = self._has_previous_101_enrollment(
                 studentno, training_course)
 
-            if training_course.course_type == '101':
+            if training_course.course_type == TrainingCourse.COURSE_TYPE_101:
                 # For 101 courses, exclude students who already have a
                 # previous 101 enrollment from different academic year
                 if not has_previous_101_enrollment:
@@ -90,7 +91,8 @@ class EnrollmentManager(models.Manager):
                                  f"has previous 101 enrollment from different "
                                  f"academic year")
 
-            elif training_course.course_type == 'booster':
+            elif training_course.course_type == \
+                    TrainingCourse.COURSE_TYPE_BOOSTER:
                 # For booster courses, only include students who have a
                 # previous 101 enrollment from different academic year
                 if has_previous_101_enrollment:
@@ -135,7 +137,7 @@ class EnrollmentManager(models.Manager):
         previous_101_enrollments = self.filter(
             integration_id=studentno,
             deleted_date__isnull=True,
-            course__training_course__course_type='101'
+            course__training_course__course_type=TrainingCourse.COURSE_TYPE_101
         ).exclude(
             course__training_course__term_id=current_term_id
         ).exists()
