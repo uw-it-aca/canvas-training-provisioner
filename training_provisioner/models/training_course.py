@@ -66,6 +66,12 @@ class TrainingCourse(models.Model):
         (COURSE_STATUS_COMPLETED, 'completed'),
         (COURSE_STATUS_PUBLISHED, 'published'),
     )
+    COURSE_TYPE_101 = '101'
+    COURSE_TYPE_BOOSTER = 'booster'
+    COURSE_TYPE_CHOICES = (
+          (COURSE_TYPE_101, 'Title VI 101 Course'),
+          (COURSE_TYPE_BOOSTER, 'Title VI Booster Course'),
+    )
 
     course_name = models.CharField(max_length=200)
     blueprint_course_id = models.CharField(max_length=100)
@@ -77,6 +83,10 @@ class TrainingCourse(models.Model):
     course_status = models.SmallIntegerField(
         default=COURSE_STATUS_ACTIVE,
         choices=COURSE_STATUS_CHOICES)
+    course_type = models.CharField(
+        max_length=50,
+        choices=COURSE_TYPE_CHOICES,
+        default=COURSE_TYPE_101)
     is_provisioned = models.BooleanField(default=False)
     course_count = models.IntegerField(
         default=1, validators=[MinValueValidator(1)])
@@ -120,18 +130,6 @@ class TrainingCourse(models.Model):
             return eval(f"{self.get_membership_type_display()}(self)")
         except Exception as ex:
             raise ValueError(f"Invalid membership: {ex}")
-
-    def get_course_type(self):
-        """
-        Extract course type from course_name.
-        Returns: '101', 'booster', or None if type can't be determined
-        """
-        course_name_lower = self.course_name.lower()
-        if 'booster' in course_name_lower:
-            return 'booster'
-        elif '101' in course_name_lower:
-            return '101'
-        return None
 
     def get_course_id_for_member(self, integration_id):
         return self.course_id(self._course_index_for_member(integration_id))
