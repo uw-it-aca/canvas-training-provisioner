@@ -44,8 +44,10 @@ def title_vi_membership_candidates(training_course):
     """
     eligible_members = set()
 
-    # Use term_id to determine academic year
-    term_parts = re.match(r"^AY(\d{4})-(\d{4})$", training_course.term_id)
+    # Use term_id to determine academic year. Term SIS IDs may include a
+    # suffix after the standard AYYYYY-YYYY format, so we ignore that here.
+    term_parts = re.match(r"^AY(\d{4})-(\d{4})(-.*)?$",
+                          training_course.term_id)
     if not term_parts:
         raise ValueError(
             f"Invalid term_id format: {training_course.term_id}")

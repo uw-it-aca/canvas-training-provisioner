@@ -24,7 +24,7 @@ class MembershipDAOTest(TrainingCourseTestCase):
     def setUp(self):
         super().setUp()
         self.training_course = TrainingCourse.objects.get(pk=1)
-        self.training_course.term_id = "AY2025-2026"
+        self.training_course.term_id = "AY2025-2026-101"
 
     @patch('training_provisioner.dao.membership.open', new_callable=mock_open)
     @patch('training_provisioner.dao.membership.mock_file_path')
