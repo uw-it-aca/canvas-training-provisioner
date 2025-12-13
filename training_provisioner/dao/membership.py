@@ -46,6 +46,7 @@ def title_vi_membership_candidates(training_course):
 
     # Use term_id to determine academic year. Term SIS IDs may include a
     # suffix after the standard AYYYYY-YYYY format, so we ignore that here.
+    # term_id is assumed to be term.sis_source_id
     term_parts = re.match(r"^AY(\d{4})-(\d{4})(-.*)?$",
                           training_course.term_id)
     if not term_parts:
@@ -98,7 +99,7 @@ def get_quarters_in_ay(academic_year, current_quarter_code):
     quarters if not.
 
     NOTE: At a project level we will use official UW academic year
-    (SUM-SPR)
+    (Summer, Autumn, Winter, Spring)
     See: https://metadata.uw.edu/catalog/viewitem/Term/studentdata.academicyear
 
     Args:
@@ -108,7 +109,7 @@ def get_quarters_in_ay(academic_year, current_quarter_code):
 
     Returns:
         list: quarter codes in the academic year on or after current quarter,
-            eg, ['20261', '20262', '20263', '20264']
+            eg, ['20253', '20254', '20261', '20262']
     """
     ay_parts = re.match(r"^(\d{4})/(\d{4})$", academic_year)
     if not ay_parts:
@@ -208,6 +209,7 @@ def get_students_from_registration(quarter_code):
         quarter_code (str|int): quarter code like "20254"
     Returns:
         list: student_numbers of registered students
+
     """
     if not re.match(r"^\d{5}$", str(quarter_code)):
         raise ValueError(f"Invalid quarter_code format: {quarter_code}")

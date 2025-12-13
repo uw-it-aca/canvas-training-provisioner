@@ -125,7 +125,9 @@ class TrainingCourse(models.Model):
         ordinal = index + 1
         return f"{self.course_id_prefix}{ordinal:03d}"
 
-    def get_course_membership(self):
+    def get_course_membership(self) -> list[str]:
+        # Call the appropriate membership function from dao.membership
+        # based on membership choice type
         try:
             return eval(f"{self.get_membership_type_display()}(self)")
         except Exception as ex:
@@ -148,6 +150,7 @@ class TrainingCourse(models.Model):
         return int(integration_id)
 
     def load_courses_and_enrollments(self):
+        # Entrypoint for loading jobs for sections, enrollments
         for model in self._dependent_models():
             model.objects.add_models_for_training_course(self)
 

@@ -18,15 +18,20 @@ logger = logging.getLogger(__name__)
 
 
 class EnrollmentManager(models.Manager):
-    def add_models_for_training_course(self, training_course):
+    def add_models_for_training_course(self, training_course: TrainingCourse):
+        # Entrypoint for model loading for enrollments
         enrollments = []
+        # Get student numbers for currently enrolled students
         enrolled_studentnos = set(self.filter(
             course__training_course=training_course
         ).values_list('integration_id', flat=True))
 
+        # Get list of all eligible students from EDW
         membership_candidates = training_course.get_course_membership()
 
         # Filter candidates based on course type and previous enrollments
+        # If current course type is '101', exclude students with previous '101'
+        # enrollments from different academic years and vice versa for booster
         filtered_candidates = self._filter_candidates_by_course_type(
             membership_candidates, training_course)
 
@@ -131,7 +136,7 @@ class EnrollmentManager(models.Manager):
             academic year, False otherwise
         """
 
-        # Get current term_id (e.g., 'AY2025-2026')
+        # Get current term_id (e.g., 'AY2025-2026-101')
         current_term_id = current_training_course.term_id
 
         # Get all training courses with course_type='101' where
@@ -148,6 +153,9 @@ class EnrollmentManager(models.Manager):
         return previous_101_enrollments
 
     def _add_enrollment(self, studentno, training_course):
+        # TODO: if a student has an existing enrollment with a deleted_date
+        # set, we should reactivate that enrollment instead of
+        # creating a new one.
         try:
             course_id = training_course.get_course_id_for_member(studentno)
             course = Course.objects.get(course_id=course_id)
