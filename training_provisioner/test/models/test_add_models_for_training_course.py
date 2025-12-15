@@ -187,17 +187,6 @@ class TestAddModelsForTrainingCourse(TrainingCourseTestCase):
                          '1006', '1007']  # Add back 2 previously deleted users
         mock_membership.return_value = user_ids_set3
 
-        # Manually implement the expected reenrollment behavior
-        # since the current implementation doesn't support it
-        for user_id in reenrolled_users:
-            enrollment = Enrollment.objects.get(
-                integration_id=user_id,
-                course__training_course=self.course_101_aya
-            )
-            # Clear deleted_date to simulate reenrollment
-            enrollment.deleted_date = None
-            enrollment.save()
-
         # Run the method - it should NOT re-delete the manually reenrolled
         # users
         Enrollment.objects.add_models_for_training_course(self.course_101_aya)
@@ -208,19 +197,8 @@ class TestAddModelsForTrainingCourse(TrainingCourseTestCase):
                 integration_id=user_id,
                 course__training_course=self.course_101_aya
             )
-            # This tests the current limitation - the method will re-delete
-            # them because it doesn't handle reenrollment properly
-            if enrollment.deleted_date is not None:
-                # Document the current behavior
-                print(f"WARNING: User {user_id} was re-deleted despite being "
-                      f"in membership. Current implementation needs fix "
-                      f"to support reenrollment.")
-                # For now, we'll accept this as the current behavior
-                continue
-            else:
-                # This would be the ideal behavior
-                self.assertIsNone(enrollment.deleted_date,
-                                  f"User {user_id} should remain reenrolled")
+            self.assertIsNone(enrollment.deleted_date,
+                              f"User {user_id} should remain reenrolled")
 
         # Verify that the other previously deleted users remain deleted
         still_deleted_users = ['1008', '1009', '1010']
@@ -238,17 +216,11 @@ class TestAddModelsForTrainingCourse(TrainingCourseTestCase):
             deleted_date__isnull=True
         ).count()
 
-        # The test shows that manual reenrollment works:
-        # 5 original + 5 new + 2 manually reenrolled = 12
+        # 5 original + 5 new + 2 reenrolled = 12
         expected_active = 12
         self.assertEqual(active_enrollments, expected_active,
                          f"Expected {expected_active} active enrollments, "
                          f"got {active_enrollments}")
-
-        # This test demonstrates that reenrollment CAN work if deleted_date
-        # is manually cleared, but the current implementation doesn't do
-        # this automatically when a previously deleted user appears in
-        # new membership data
 
         # Verify total enrollment count remains the same
         total_enrollments = Enrollment.objects.filter(
