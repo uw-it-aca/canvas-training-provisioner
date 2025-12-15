@@ -18,19 +18,32 @@ logger = logging.getLogger(__name__)
 
 
 class EnrollmentManager(models.Manager):
-    def add_models_for_training_course(self, training_course):
+    def add_models_for_training_course(self, training_course: TrainingCourse):
+        # Entrypoint for model loading for enrollments
+        # Studentno will be integration_id in Canvas import.
         enrollments = []
+        # Get student numbers for all currently enrolled students
+        # in this course (incl inactive) from existing enrollments
         enrolled_studentnos = set(self.filter(
             course__training_course=training_course
         ).values_list('integration_id', flat=True))
 
+        # Get list of all currently eligible students from EDW
         membership_candidates = training_course.get_course_membership()
 
-        # Filter candidates based on course type and previous enrollments
+        # Filter candidates based on course type and enrollments in other
+        # courses. If current course type is '101', exclude students with
+        # previous '101' enrollments from different academic years and
+        # vice versa for booster courses.
+        # Note: this will filter based on active enrollments in other courses
+        # There is potentially a race condition here based on a student being
+        # reenrolled in another course, so courses should always be processed
+        # in ascending order of academic year to minimize this.
         filtered_candidates = self._filter_candidates_by_course_type(
             membership_candidates, training_course)
 
-        # Studentno will be integration_id in Canvas import
+        # Iterate through filtered candidates and add/update enrollments,
+        # removing from enrolled_studentnos set as we go
         for studentno in filtered_candidates:
             try:
                 enrollment = self._add_enrollment(studentno, training_course)
@@ -39,7 +52,8 @@ class EnrollmentManager(models.Manager):
             except EnrollmentCourseMismatch as ex:
                 logger.error(ex)
 
-        # cull dropped members
+        # cull dropped members who appear in the course but not in the
+        # filtered candidate list
         now = localtime()
         for dropped_studentno in enrolled_studentnos:
             try:
@@ -70,6 +84,13 @@ class EnrollmentManager(models.Manager):
         Filter candidate list based on course type and previous enrollment
         history.
 
+        NOTE: with the has_previous_101_enrollment logic a student who had an
+        enrollment in the previous year which was deleted would be treated as
+        NOT having a previous enrollment and therefore be eligible for 101 and
+        ineligible for booster. This is desirable for students who dropped
+        before census day, but might not be for students who were dropped
+        after census.
+
         Args:
             candidates (list): List of student integration_ids
             training_course: TrainingCourse instance
@@ -86,7 +107,8 @@ class EnrollmentManager(models.Manager):
 
             if training_course.course_type == TrainingCourse.COURSE_TYPE_101:
                 # For 101 courses, exclude students who already have a
-                # previous 101 enrollment from different academic year
+                # previous active 101 enrollment from different academic year
+                # See note above about deleted enrollments
                 if not has_previous_101_enrollment:
                     filtered_candidates.append(studentno)
                 else:
@@ -97,7 +119,7 @@ class EnrollmentManager(models.Manager):
             elif training_course.course_type == \
                     TrainingCourse.COURSE_TYPE_BOOSTER:
                 # For booster courses, only include students who have a
-                # previous 101 enrollment from different academic year
+                # previous active 101 enrollment from different academic year
                 if has_previous_101_enrollment:
                     filtered_candidates.append(studentno)
                 else:
@@ -131,7 +153,7 @@ class EnrollmentManager(models.Manager):
             academic year, False otherwise
         """
 
-        # Get current term_id (e.g., 'AY2025-2026')
+        # Get current term_id (e.g., 'AY2025-2026-101')
         current_term_id = current_training_course.term_id
 
         # Get all training courses with course_type='101' where
@@ -148,6 +170,7 @@ class EnrollmentManager(models.Manager):
         return previous_101_enrollments
 
     def _add_enrollment(self, studentno, training_course):
+        # Add or update enrollment for a given student in the training course
         try:
             course_id = training_course.get_course_id_for_member(studentno)
             course = Course.objects.get(course_id=course_id)
@@ -159,6 +182,19 @@ class EnrollmentManager(models.Manager):
             enrollment = Enrollment.objects.get(
                 integration_id=studentno,
                 course__training_course=training_course)
+
+            # Check if this is a reenrollment (previously deleted user)
+            if enrollment.deleted_date is not None:
+                # This student has a previously deleted enrollment in this
+                # course. Reactivate it as a reenrollment
+                enrollment.deleted_date = None
+                enrollment.priority = ImportResource.PRIORITY_DEFAULT
+                enrollment.save()
+                self._trigger_course_import(enrollment.course)
+                section_or_course_id = enrollment.section.section_id if \
+                    enrollment.section else enrollment.course.course_id
+                logger.info(f"reactivate enrollment {studentno} in "
+                            f"{section_or_course_id}")
 
             if not (enrollment.course == course
                     and enrollment.section == section):
