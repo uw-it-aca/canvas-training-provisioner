@@ -1,3 +1,6 @@
+# Copyright 2025 UW-IT, University of Washington
+# SPDX-License-Identifier: Apache-2.0
+
 """
 Tests specifically for the reenrollment functionality in _add_enrollment.
 """
