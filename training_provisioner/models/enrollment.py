@@ -108,7 +108,7 @@ class EnrollmentManager(models.Manager):
             if training_course.course_type == TrainingCourse.COURSE_TYPE_101:
                 # For 101 courses, exclude students who already have a
                 # previous active 101 enrollment from different academic year
-                # See note below about booster courses
+                # See note above about deleted enrollments
                 if not has_previous_101_enrollment:
                     filtered_candidates.append(studentno)
                 else:
