@@ -90,7 +90,7 @@ class EnrollmentManager(models.Manager):
         ineligible for booster. This is desirable for students who dropped
         before census day, but might not be for students who were dropped
         after census.
-        
+
         Args:
             candidates (list): List of student integration_ids
             training_course: TrainingCourse instance
