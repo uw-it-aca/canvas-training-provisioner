@@ -73,25 +73,39 @@ class TrainingCourse(models.Model):
           (COURSE_TYPE_BOOSTER, 'Title VI Booster Course'),
     )
 
-    course_name = models.CharField(max_length=200)
-    blueprint_course_id = models.CharField(max_length=100)
-    term_id = models.CharField(max_length=30, db_index=True)
-    account_id = models.CharField(max_length=80)
+    course_name = models.CharField(
+        max_length=200,
+        help_text="Name given to each provisioned course.")
+    blueprint_course_id = models.CharField(
+        max_length=100,
+        help_text="Each course will based on this blueprint course SIS ID.")
+    term_id = models.CharField(
+        max_length=30, db_index=True,
+        help_text="Each course will be assigned this term SIS ID.")
+    account_id = models.CharField(
+        max_length=80,
+        help_text="Each course will be created in this account SIS ID.")
     membership_type = models.SmallIntegerField(
         default=TEST_MEMBERS,
         choices=MEMBERSHIP_CHOICES)
     course_status = models.SmallIntegerField(
         default=COURSE_STATUS_ACTIVE,
-        choices=COURSE_STATUS_CHOICES)
+        choices=COURSE_STATUS_CHOICES,
+        help_text="Canvas course status applied to each course")
     course_type = models.CharField(
         max_length=50,
         choices=COURSE_TYPE_CHOICES,
         default=COURSE_TYPE_101)
-    is_provisioned = models.BooleanField(default=False)
+    is_provisioned = models.BooleanField(
+        default=False,
+        help_text=("Check to provision courses to canvas. "
+                   "Uncheck will not remove courses from canvas."))
     course_count = models.IntegerField(
-        default=1, validators=[MinValueValidator(1)])
+        default=1, validators=[MinValueValidator(1)],
+        help_text="Number of courses to provision from blueprint course.")
     section_count = models.IntegerField(
-        default=0, validators=[MinValueValidator(0)])
+        default=0, validators=[MinValueValidator(0)],
+        help_text="Number of sections within each course to enroll students.")
     creation_date = models.DateTimeField(auto_now=True)
     deleted_date = models.DateTimeField(null=True, blank=True)
 
