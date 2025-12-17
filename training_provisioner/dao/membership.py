@@ -3,6 +3,7 @@
 
 from . import mock_file_path
 import json
+import os
 import re
 import logging
 from training_provisioner.dao.edw import execute_edw_query
@@ -56,10 +57,11 @@ def title_vi_membership_candidates(training_course):
         f"{term_parts.group(1)}/{term_parts.group(2)}"
 
     # Note: overriding the first Title VI 101 course to only get Spring 2026,
-    # but otherwise we should get all quarters in the academic year to avoid
-    # dropping students who stop attending later in the year...
+    # (PROD only) but otherwise we should get all quarters in the academic
+    # year to avoid dropping students who stop attending later in the year...
     start_quarter = None
-    if training_course_academic_year == '2025/2026':
+    if training_course_academic_year == '2025/2026' and \
+       os.getenv('CANVAS_ENV') != 'EVAL':
         start_quarter = 20262  # Spring 2026 only for AY25-26 course
     quarters_in_ay = get_quarters_in_ay(training_course_academic_year,
                                         start_quarter)
