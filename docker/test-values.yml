@@ -64,7 +64,7 @@ sidecarContainers:
         valueFrom:
           secretKeyRef:
             name: test-apps.studenttraining.uw.edu-edw-secrets
-            key: edw-hostname
+            key: hostname
       - name: TARGET_PORT
         value: "1433"
       - name: LOCAL_PORT
@@ -114,7 +114,7 @@ cronjob:
               valueFrom:
                 secretKeyRef:
                   name: test-apps.studenttraining.uw.edu-edw-secrets
-                  key: edw-hostname
+                  key: hostname
             - name: TARGET_PORT
               value: "1433"
             - name: LOCAL_PORT
