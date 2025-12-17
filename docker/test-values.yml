@@ -88,7 +88,7 @@ cronjob:
   enabled: false
   jobs:
     - name: load-training-courses
-      schedule: "40 2 * * 1-5"
+      schedule: "40 8 * * 1-5"
       command: ["/scripts/management_command.sh"]
       args: ["load_training_courses"]
       sidecars:
@@ -124,7 +124,7 @@ cronjob:
             - "-c"
             - 'mkdir -m 0700 ~/.ssh && echo "${PROXY_ID_KEY}" > ~/.ssh/id_ecdsa && chmod 400 ~/.ssh/id_ecdsa && ssh ${PROXY_ID}@${PROXY_HOSTNAME} -o StrictHostKeyChecking=no -N -L 127.0.0.1:${LOCAL_PORT}:${TARGET_HOSTNAME}:${TARGET_PORT}'
     - name: import-training-courses
-      schedule: "40 3 * * 1-5"
+      schedule: "40 9 * * 1-5"
       command: ["/scripts/management_command.sh"]
       args: ["import_training_courses"]
 
