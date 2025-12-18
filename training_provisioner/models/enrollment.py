@@ -196,17 +196,29 @@ class EnrollmentManager(models.Manager):
                 logger.info(f"reactivate enrollment {studentno} in "
                             f"{section_or_course_id}")
 
-            if not (enrollment.course == course
-                    and enrollment.section == section):
+            if enrollment.course != course:
+                raise EnrollmentCourseMismatch()
+            elif enrollment.section != section:
                 orig_course_id = enrollment.course.course_id
                 orig_section_id = (enrollment.section.section_id
-                                   if enrollment.section else "None")
-                raise EnrollmentCourseMismatch(
+                                   if enrollment.section else None)
+                # deactivate old enrollment
+                enrollment.deleted_date = localtime()
+                enrollment.priority = ImportResource.PRIORITY_DEFAULT
+                enrollment.save()
+
+                # reactivate prior enrollment or create new one
+                enrollment = Enrollment.objects.get(
+                    integration_id=studentno, course=course, section=section)
+                enrollment.deleted_date = None
+                enrollment.priority = ImportResource.PRIORITY_DEFAULT
+                enrollment.save()
+
+                logger.info(
                     f"Enrollment for {studentno} in "
-                    f"{training_course.course_id_prefix} CHANGED: course from "
-                    f"{orig_course_id} to {course_id}, section from "
-                    f"{orig_section_id} to {section_id}: enrollment "
-                    f"unchanged")
+                    f"{training_course.course_id_prefix} CHANGED from course "
+                    f"{orig_course_id} to {course_id}, section "
+                    f"{orig_section_id} to {section_id}")
 
         except Course.DoesNotExist:
             raise MissingCourseException(
