@@ -24,6 +24,14 @@ readiness:
 securityPolicy:
   enabled: false
 
+resources:
+  limits:
+    cpu: 700m
+    memory: 1.0Gi
+  requests:
+    cpu: 250m
+    memory: 500Mi
+
 externalService:
   enabled: true
   name: studenttraining-db-service
@@ -91,6 +99,13 @@ cronjob:
       schedule: "40 8 * * 1-5"
       command: ["/scripts/management_command.sh"]
       args: ["load_training_courses"]
+      resources:
+        limits:
+          cpu: 700m
+          memory: 1.0Gi
+        requests:
+          cpu: 250m
+          memory: 500Mi
       sidecars:
         - name: ssh-proxy
           image: "us-docker.pkg.dev/uwit-mci-axdd/containers/uw-ssh-client:89695b2"
