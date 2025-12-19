@@ -134,7 +134,7 @@ class EnrollmentModelTest(TrainingCourseTestCase):
         # section that _add_enrollment will assign to enrollment
         new_section = enrollment.section
 
-        # change enrollment to "old" course
+        # change enrollment to "old" section
         old_section = None
         for section_id in enrollment.course.section_import_ids:
             if section_id != new_section.section_id:
@@ -143,8 +143,8 @@ class EnrollmentModelTest(TrainingCourseTestCase):
                 enrollment.save()
                 break
 
-        if not old_section:
-            return
+        self.skipTest("no alternate section found for course "
+                      f" {enrollment.course.course_id}")
 
         Enrollment.objects._add_enrollment(integration_id, training_course)
 

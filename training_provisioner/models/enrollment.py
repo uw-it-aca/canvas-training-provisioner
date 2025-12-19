@@ -199,7 +199,7 @@ class EnrollmentManager(models.Manager):
             if enrollment.course != course:
                 raise EnrollmentCourseMismatch(
                     f"Enrollment for {studentno} course change from "
-                    f"{enrollment.course != course} to {course} NOT allowed")
+                    f"{enrollment.course} to {course} NOT allowed")
             elif enrollment.section != section:
                 orig_course_id = enrollment.course.course_id
                 orig_section_id = (enrollment.section.section_id
