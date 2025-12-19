@@ -13,6 +13,7 @@ from django.utils.timezone import localtime
 import re
 import logging
 import json
+import time
 
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,8 @@ class EnrollmentManager(models.Manager):
     def add_models_for_training_course(self, training_course: TrainingCourse):
         # Entrypoint for model loading for enrollments
         # Studentno will be integration_id in Canvas import.
+        start_time = time.time()
+
         enrollments = []
         # Get student numbers for all currently enrolled students
         # in this course (incl inactive) from existing enrollments
@@ -29,8 +32,11 @@ class EnrollmentManager(models.Manager):
             course__training_course=training_course
         ).values_list('integration_id', flat=True))
 
+        existing_enrollment_count = len(enrolled_studentnos)
+
         # Get list of all currently eligible students from EDW
         membership_candidates = training_course.get_course_membership()
+        candidate_count = len(membership_candidates)
 
         # Filter candidates based on course type and enrollments in other
         # courses. If current course type is '101', exclude students with
@@ -43,6 +49,10 @@ class EnrollmentManager(models.Manager):
         filtered_candidates = self._filter_candidates_by_course_type(
             membership_candidates, training_course)
 
+        # Count enrollments added and dropped for metrics
+        enrollments_added = 0
+        enrollments_dropped = 0
+
         # Iterate through filtered candidates and add/update enrollments,
         # removing from enrolled_studentnos set as we go
         for studentno in filtered_candidates:
@@ -51,6 +61,7 @@ class EnrollmentManager(models.Manager):
                 enrollment = self._add_enrollment(studentno, training_course)
                 enrollments.append(enrollment)
                 enrolled_studentnos.discard(studentno)
+                enrollments_added += 1
             except EnrollmentCourseMismatch as ex:
                 logger.error(ex)
 
@@ -69,6 +80,7 @@ class EnrollmentManager(models.Manager):
                 enrollment.priority = ImportResource.PRIORITY_DEFAULT
                 enrollment.save()
                 enrollments.append(enrollment)
+                enrollments_dropped += 1
 
                 self._trigger_course_import(enrollment.course)
 
@@ -81,6 +93,35 @@ class EnrollmentManager(models.Manager):
             except Enrollment.DoesNotExist:
                 logger.info("Missing dropped enrollment: "
                             f"{dropped_studentno} from {training_course}")
+
+        # Calculate timing and log metrics
+        end_time = time.time()
+        duration = end_time - start_time
+
+        # Log metrics
+        metrics = {
+            "training_course": training_course.course_name,
+            "duration_seconds": round(duration, 3),
+            "existing_enrollments": existing_enrollment_count,
+            "candidates_from_edw": candidate_count,
+            "enrollments_added": enrollments_added,
+            "enrollments_dropped": enrollments_dropped,
+            "timestamp": localtime().isoformat()
+        }
+
+        logger.info(f"Enrollment processing completed for "
+                    f"{training_course.course_name}: "
+                    f"{enrollments_added} added, {enrollments_dropped} "
+                    f"dropped in {duration:.3f}s")
+
+        # Write metrics to output file in /tmp
+        try:
+            metrics_file = "/tmp/enrollment_metrics_"
+            f"{training_course.course_name.replace(' ', '_')}.json"
+            with open(metrics_file, 'w') as f:
+                json.dump(metrics, f, indent=2)
+        except Exception as ex:
+            logger.warning(f"Failed to write metrics file: {ex}")
 
         return enrollments
 
