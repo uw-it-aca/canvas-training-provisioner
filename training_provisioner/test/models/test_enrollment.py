@@ -136,7 +136,7 @@ class EnrollmentModelTest(TrainingCourseTestCase):
 
         # change enrollment to "old" course
         old_section = None
-        for section_id in  enrollment.course.section_import_ids:
+        for section_id in enrollment.course.section_import_ids:
             if section_id != new_section.section_id:
                 old_section = Section.objects.get(section_id=section_id)
                 enrollment.section = old_section
@@ -158,9 +158,9 @@ class EnrollmentModelTest(TrainingCourseTestCase):
 
         self.assertIsNotNone(
             enrollments[0].deleted_date if (
-                enrollments[0].section == old_section) else \
-                enrollments[1].deleted_date)
+                enrollments[0].section == old_section) else
+            enrollments[1].deleted_date)
         self.assertIsNone(
             enrollments[0].deleted_date if (
-                enrollments[0].section == new_section) else \
-                enrollments[1].deleted_date)
+                enrollments[0].section == new_section) else
+            enrollments[1].deleted_date)
