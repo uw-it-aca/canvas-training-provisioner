@@ -306,7 +306,7 @@ class TitleVIMembershipTest(TrainingCourseTestCase):
         mock_quarters.return_value = ["20262"]  # Spring 2026 only
         mock_quarter_info.return_value = {
             'CensusDayStatus': 'Before Census Day'
-            }
+        }
         mock_registration.return_value = ['1111111', '2222222']
         mock_admissions.return_value = ['3333333', '4444444']
 
@@ -360,8 +360,19 @@ class TitleVIMembershipTest(TrainingCourseTestCase):
 
         # Should get all registration students plus admissions for
         # before-census quarters only
-        expected = ['1001', '1002', '2001', '2002', '3001', '3002', '4001', '4002',
-                    '5001', '5002', '6001', '6002']
+        expected = [
+            '1001',
+            '1002',
+            '2001',
+            '2002',
+            '3001',
+            '3002',
+            '4001',
+            '4002',
+            '5001',
+            '5002',
+            '6001',
+            '6002']
         self.assertEqual(sorted(result), sorted(expected))
 
         # Verify get_quarters_in_ay was called without start quarter
@@ -400,7 +411,8 @@ class TitleVIMembershipTest(TrainingCourseTestCase):
         ]
         mock_admissions.side_effect = [
             ['1003', '2001'],  # Winter (1003 is duplicate from registration)
-            ['2001', '2002']   # Spring (2001 is duplicate from previous quarter)
+            # Spring (2001 is duplicate from previous quarter)
+            ['2001', '2002']
         ]
 
         result = title_vi_membership_candidates(self.training_course)
