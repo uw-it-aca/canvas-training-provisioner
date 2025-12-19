@@ -205,7 +205,7 @@ class MembershipDAOTest(TrainingCourseTestCase):
 
         result = get_students_from_registration("20254")
 
-        expected = [1234567, 2345678, 3456789]
+        expected = ['1234567', '2345678', '3456789']
         self.assertEqual(result, expected)
 
         # Verify SQL query elements
@@ -230,7 +230,7 @@ class MembershipDAOTest(TrainingCourseTestCase):
 
         result = get_students_from_registration(20254)
 
-        self.assertEqual(result, [1234567])
+        self.assertEqual(result, ['1234567'])
 
     @patch('training_provisioner.dao.membership.execute_edw_query')
     def test_get_students_from_admissions_valid(self, mock_query):
@@ -243,7 +243,7 @@ class MembershipDAOTest(TrainingCourseTestCase):
 
         result = get_students_from_admissions("20254")
 
-        expected = [9876543, 8765432]
+        expected = ['9876543', '8765432']
         self.assertEqual(result, expected)
 
         # Verify SQL query elements
@@ -268,7 +268,7 @@ class MembershipDAOTest(TrainingCourseTestCase):
 
         result = get_students_from_admissions(20254)
 
-        self.assertEqual(result, [9876543])
+        self.assertEqual(result, ['9876543'])
 
 
 class TitleVIMembershipTest(TrainingCourseTestCase):
@@ -307,14 +307,14 @@ class TitleVIMembershipTest(TrainingCourseTestCase):
         mock_quarter_info.return_value = {
             'CensusDayStatus': 'Before Census Day'
             }
-        mock_registration.return_value = [1111111, 2222222]
-        mock_admissions.return_value = [3333333, 4444444]
+        mock_registration.return_value = ['1111111', '2222222']
+        mock_admissions.return_value = ['3333333', '4444444']
 
         result = title_vi_membership_candidates(self.training_course)
 
         # Should get students from both registration and admissions
         # in Spring 2026
-        expected = [1111111, 2222222, 3333333, 4444444]
+        expected = ['1111111', '2222222', '3333333', '4444444']
         self.assertEqual(sorted(result), sorted(expected))
 
         # Verify get_quarters_in_ay was called with Spring 2026 start
@@ -344,24 +344,24 @@ class TitleVIMembershipTest(TrainingCourseTestCase):
 
         # Mock different students for each quarter
         mock_registration.side_effect = [
-            [1001, 1002],  # Summer
-            [2001, 2002],  # Autumn
-            [3001, 3002],  # Winter
-            [4001, 4002]   # Spring
+            ['1001', '1002'],  # Summer
+            ['2001', '2002'],  # Autumn
+            ['3001', '3002'],  # Winter
+            ['4001', '4002']   # Spring
         ]
         # Admissions is only called for 'Before Census Day' quarters
         # (Autumn and Spring)
         mock_admissions.side_effect = [
-            [5001, 5002],  # Autumn (before census)
-            [6001, 6002]   # Spring (before census)
+            ['5001', '5002'],  # Autumn (before census)
+            ['6001', '6002']   # Spring (before census)
         ]
 
         result = title_vi_membership_candidates(self.training_course)
 
         # Should get all registration students plus admissions for
         # before-census quarters only
-        expected = [1001, 1002, 2001, 2002, 3001, 3002, 4001, 4002,
-                    5001, 5002, 6001, 6002]
+        expected = ['1001', '1002', '2001', '2002', '3001', '3002', '4001', '4002',
+                    '5001', '5002', '6001', '6002']
         self.assertEqual(sorted(result), sorted(expected))
 
         # Verify get_quarters_in_ay was called without start quarter
@@ -395,18 +395,18 @@ class TitleVIMembershipTest(TrainingCourseTestCase):
 
         # Same students appear in multiple quarters
         mock_registration.side_effect = [
-            [1001, 1002, 1003],  # Winter
-            [1002, 1003, 1004]   # Spring (1002, 1003 are duplicates)
+            ['1001', '1002', '1003'],  # Winter
+            ['1002', '1003', '1004']   # Spring (1002, 1003 are duplicates)
         ]
         mock_admissions.side_effect = [
-            [1003, 2001],  # Winter (1003 is duplicate from registration)
-            [2001, 2002]   # Spring (2001 is duplicate from previous quarter)
+            ['1003', '2001'],  # Winter (1003 is duplicate from registration)
+            ['2001', '2002']   # Spring (2001 is duplicate from previous quarter)
         ]
 
         result = title_vi_membership_candidates(self.training_course)
 
         # Should deduplicate - each student should appear only once
-        expected = [1001, 1002, 1003, 1004, 2001, 2002]
+        expected = ['1001', '1002', '1003', '1004', '2001', '2002']
         self.assertEqual(sorted(result), sorted(expected))
 
     def test_title_vi_booster_membership_candidates(self):
@@ -477,10 +477,10 @@ class MembershipIntegrationTest(TrainingCourseTestCase):
         self.assertEqual(quarter_info['CensusDayStatus'], 'Before Census Day')
 
         registration_students = get_students_from_registration(20262)
-        self.assertEqual(registration_students, [1111111, 2222222])
+        self.assertEqual(registration_students, ['1111111', '2222222'])
 
         admission_students = get_students_from_admissions(20262)
-        self.assertEqual(admission_students, [3333333, 4444444])
+        self.assertEqual(admission_students, ['3333333', '4444444'])
 
         # Mock get_quarters_in_ay separately since it doesn't use EDW
         with patch('training_provisioner.dao.membership.get_quarters_in_ay') \
@@ -489,5 +489,5 @@ class MembershipIntegrationTest(TrainingCourseTestCase):
 
             # Test the main membership function
             result = title_vi_membership_candidates(self.training_course)
-            expected = [1111111, 2222222, 3333333, 4444444]
+            expected = ['1111111', '2222222', '3333333', '4444444']
             self.assertEqual(sorted(result), sorted(expected))
