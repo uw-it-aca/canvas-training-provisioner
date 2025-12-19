@@ -62,6 +62,9 @@ class EnrollmentManager(models.Manager):
                 enrollment = Enrollment.objects.get(
                     integration_id=dropped_studentno,
                     course__training_course=training_course)
+                if enrollment.deleted_date is not None:
+                    # already marked as deleted
+                    continue
                 enrollment.deleted_date = now
                 enrollment.priority = ImportResource.PRIORITY_DEFAULT
                 enrollment.save()
