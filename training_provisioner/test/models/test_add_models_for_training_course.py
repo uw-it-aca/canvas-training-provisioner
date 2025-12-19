@@ -34,6 +34,29 @@ class TestAddModelsForTrainingCourse(TrainingCourseTestCase):
             Course.objects.add_models_for_training_course(training_course)
             Section.objects.add_models_for_training_course(training_course)
 
+        # Test course_count courses and section_count sections were created
+        for training_course in [self.course_101_aya,
+                                self.course_101_ayb,
+                                self.course_booster_ayb]:
+            # Verify correct number of courses created
+            course_count = Course.objects.filter(
+                training_course=training_course).count()
+            self.assertEqual(
+                course_count,
+                training_course.course_count,
+                f"Expected {training_course.course_count} courses for "
+                f"{training_course}, got {course_count}")
+
+            # Verify correct number of sections created per course
+            for course in Course.objects.filter(
+                    training_course=training_course):
+                section_count = Section.objects.filter(course=course).count()
+                self.assertEqual(
+                    section_count,
+                    training_course.section_count,
+                    f"Expected {training_course.section_count} sections for "
+                    f"course {course.course_id}, got {section_count}")
+
     @patch('training_provisioner.models.training_course.TrainingCourse.'
            'get_course_membership')
     def test_initial_enrollment_creation(self, mock_membership):
@@ -67,6 +90,152 @@ class TestAddModelsForTrainingCourse(TrainingCourseTestCase):
             course__training_course=self.course_101_aya
         ).count()
         self.assertEqual(total_enrollments, 10)
+
+        # Test that users are distributed across courses/sections according
+        # to the assignment logic
+        user_course_assignments = {}
+        user_section_assignments = {}
+
+        for user_id in user_ids_set1:
+            enrollment = Enrollment.objects.get(
+                integration_id=user_id,
+                course__training_course=self.course_101_aya
+            )
+
+            # Verify course assignment matches the training course logic
+            expected_course_id = self.course_101_aya.\
+                get_course_id_for_member(user_id)
+            self.assertEqual(
+                enrollment.course.course_id, expected_course_id,
+                f"User {user_id} assigned to wrong course. Expected "
+                f"{expected_course_id}, got {enrollment.course.course_id}")
+
+            # Track course distribution
+            course_id = enrollment.course.course_id
+            user_course_assignments[course_id] = user_course_assignments.get(
+                course_id, 0) + 1
+
+            # Verify section assignment if sections exist
+            if self.course_101_aya.section_count > 0:
+                expected_section_id = enrollment.course.\
+                    get_section_id_for_member(user_id)
+                actual_section_id = enrollment.section.section_id if \
+                    enrollment.section else None
+                self.assertEqual(
+                    actual_section_id,
+                    expected_section_id,
+                    f"User {user_id} assigned to wrong section. Expected "
+                    f"{expected_section_id}, got {actual_section_id}")
+
+                # Track section distribution
+                if actual_section_id:
+                    user_section_assignments[actual_section_id] = \
+                        user_section_assignments.get(actual_section_id, 0) + 1
+
+        # Print distribution for visual verification
+        print(f"\nCourse distribution for {self.course_101_aya.course_name}:")
+        for course_id, count in user_course_assignments.items():
+            print(f"  {course_id}: {count} users")
+
+        if user_section_assignments:
+            print("Section distribution:")
+            for section_id, count in user_section_assignments.items():
+                print(f"  {section_id}: {count} users")
+
+    @patch('training_provisioner.models.training_course.TrainingCourse.'
+           'get_course_membership')
+    def test_rerun_with_same_data_no_duplicates(self, mock_membership):
+        """
+        Rerun test_initial_enrollment_creation() with exactly the same data
+        and verify no duplicates are created and no users are deleted.
+        """
+        # Use the same user set as test_initial_enrollment_creation
+        user_ids_set1 = ['1001', '1002', '1003', '1004', '1005',
+                         '1006', '1007', '1008', '1009', '1010']
+        mock_membership.return_value = user_ids_set1
+
+        # First run - create initial enrollments
+        initial_enrollments = Enrollment.objects.\
+            add_models_for_training_course(self.course_101_aya)
+
+        # Capture initial state
+        initial_enrollment_data = {}
+        for enrollment in initial_enrollments:
+            this_section_id = enrollment.section.section_id if \
+                enrollment.section else None
+            initial_enrollment_data[enrollment.integration_id] = {
+                'id': enrollment.id,
+                'created_date': enrollment.created_date,
+                'deleted_date': enrollment.deleted_date,
+                'course_id': enrollment.course.course_id,
+                'section_id': this_section_id
+            }
+
+        initial_count = len(initial_enrollments)
+        self.assertEqual(initial_count, 10)
+
+        # Second run - with exactly the same data
+        second_enrollments = Enrollment.objects.add_models_for_training_course(
+            self.course_101_aya)
+
+        # Verify no new enrollments were created
+        total_enrollments = Enrollment.objects.filter(
+            course__training_course=self.course_101_aya
+        ).count()
+        self.assertEqual(
+            total_enrollments,
+            10,
+            "Second run should not create duplicate enrollments")
+
+        # Verify no users were marked as deleted
+        active_enrollments = Enrollment.objects.filter(
+            course__training_course=self.course_101_aya,
+            deleted_date__isnull=True
+        ).count()
+        self.assertEqual(active_enrollments, 10,
+                         "Second run should not delete any users")
+
+        # Verify each user's enrollment data is unchanged
+        for user_id in user_ids_set1:
+            enrollment = Enrollment.objects.get(
+                integration_id=user_id,
+                course__training_course=self.course_101_aya
+            )
+
+            initial_data = initial_enrollment_data[user_id]
+
+            # Verify same enrollment record (same ID)
+            self.assertEqual(
+                enrollment.id,
+                initial_data['id'],
+                f"User {user_id} should have same enrollment ID")
+
+            # Verify created_date unchanged
+            self.assertEqual(
+                enrollment.created_date,
+                initial_data['created_date'],
+                f"User {user_id} created_date should be unchanged")
+
+            # Verify still not deleted
+            self.assertIsNone(
+                enrollment.deleted_date,
+                f"User {user_id} should not be marked as deleted")
+
+            # Verify course/section assignment unchanged
+            self.assertEqual(
+                enrollment.course.course_id,
+                initial_data['course_id'],
+                f"User {user_id} course assignment should be unchanged")
+
+            actual_section_id = enrollment.section.section_id if \
+                enrollment.section else None
+            self.assertEqual(
+                actual_section_id,
+                initial_data['section_id'],
+                f"User {user_id} section assignment should be unchanged")
+
+        print(f"\nRerun test verified: {len(second_enrollments)} existing "
+              f"enrollments returned, no duplicates created, no users deleted")
 
     @patch('training_provisioner.models.training_course.TrainingCourse.'
            'get_course_membership')
