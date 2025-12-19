@@ -27,7 +27,10 @@ class TrainingCourseManager(models.Manager):
         return self.filter(**filter)
 
     def load_active_courses(self):
-        for training_course in self.active_courses():
+        # Get active courses and sort by term_id to process earlier academic
+        # years first. This prevents race conditions when checking for
+        # previous enrollments
+        for training_course in self.active_courses().order_by('term_id'):
             logger.info(
                 "Loading training course "
                 f"{training_course.blueprint_course_id} "
