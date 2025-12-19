@@ -46,6 +46,7 @@ class EnrollmentManager(models.Manager):
         # Iterate through filtered candidates and add/update enrollments,
         # removing from enrolled_studentnos set as we go
         for studentno in filtered_candidates:
+            studentno = str(studentno)  # Ensure type consistency
             try:
                 enrollment = self._add_enrollment(studentno, training_course)
                 enrollments.append(enrollment)

@@ -24,7 +24,7 @@ def test_membership(training_course):
     return []
 
 
-def title_vi_membership_candidates(training_course):
+def title_vi_membership_candidates(training_course) -> list[str]:
     """
     Query SDB for appropriate list of students for the supplied Title VI
     training course.
@@ -73,16 +73,14 @@ def title_vi_membership_candidates(training_course):
         admissions_students = []
 
         # Track registration students
-        for student_id in registration_students:
-            eligible_members.add(student_id)
+        eligible_members.update(registration_students)
 
         if quarter_info['CensusDayStatus'] == 'Before Census Day':
             # We will only add students from the admissions table if
             # census day has not yet occurred for the supplied quarter
             # otherwise we would expect to find them via registration
             admissions_students = get_students_from_admissions(quartercode)
-            for student_id in admissions_students:
-                eligible_members.add(student_id)
+            eligible_members.update(admissions_students)
 
         # Track statistics for this quarter
         quarter_stats[quartercode] = {
@@ -94,7 +92,7 @@ def title_vi_membership_candidates(training_course):
     # Write debug files for auditing purposes
     _write_debug_files(training_course.term_id,
                        eligible_members,
-                       quarter_stats)
+                       quarter_stats, True)
 
     return list(eligible_members)
 
@@ -222,7 +220,7 @@ def get_info_for_quarter(quarter_code):
     return df.iloc[0].to_dict()
 
 
-def get_students_from_registration(quarter_code):
+def get_students_from_registration(quarter_code) -> list[str]:
     """
     Given a quarter code like "20254", return list of integration_ids
     for students registered in that quarter.
@@ -248,10 +246,10 @@ def get_students_from_registration(quarter_code):
             AND rc.regis_class NOT IN (6, 9, 10)
     """
     df = execute_edw_query(query)
-    return df['StudentNumber'].tolist()
+    return df['StudentNumber'].astype(str).tolist()
 
 
-def get_students_from_admissions(quarter_code):
+def get_students_from_admissions(quarter_code) -> list[str]:
     """
     Given a quarter code like "20254", return list of integration_ids
     for students admitted for that quarter.
@@ -280,10 +278,13 @@ def get_students_from_admissions(quarter_code):
     """
 
     df = execute_edw_query(query)
-    return df['StudentNumber'].tolist()
+    return df['StudentNumber'].astype(str).tolist()
 
 
-def _write_debug_files(term_id, eligible_members, quarter_stats):
+def _write_debug_files(term_id,
+                       eligible_members,
+                       quarter_stats,
+                       stats_only=False):
     """
     Write debug and audit files for membership analysis.
 
@@ -291,6 +292,7 @@ def _write_debug_files(term_id, eligible_members, quarter_stats):
         term_id (str): Training course term ID
         eligible_members (set): Set of eligible student IDs
         quarter_stats (dict): Statistics for each quarter
+        stats_only (bool): If True, only write statistics file
     """
     from datetime import datetime
 
@@ -299,17 +301,18 @@ def _write_debug_files(term_id, eligible_members, quarter_stats):
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 
     try:
-        # Write eligible members list
-        members_filename = "/tmp/training_eligible_members_" \
-            f"{safe_term_id}_{timestamp}.txt"
-        with open(members_filename, 'w') as f:
-            f.write(f"# Eligible members for training course: {term_id}\n")
-            f.write(f"# Generated: {datetime.now().isoformat()}\n")
-            f.write(f"# Total count: {len(eligible_members)}\n\n")
-            for member_id in sorted(eligible_members):
-                f.write(f"{member_id}\n")
+        if not stats_only:
+            # Write eligible members list
+            members_filename = "/tmp/training_eligible_members_" \
+                f"{safe_term_id}_{timestamp}.txt"
+            with open(members_filename, 'w') as f:
+                f.write(f"# Eligible members for training course: {term_id}\n")
+                f.write(f"# Generated: {datetime.now().isoformat()}\n")
+                f.write(f"# Total count: {len(eligible_members)}\n\n")
+                for member_id in sorted(eligible_members):
+                    f.write(f"{member_id}\n")
 
-        logger.info(f"Wrote eligible members list to: {members_filename}")
+            logger.info(f"Wrote eligible members list to: {members_filename}")
 
         # Write quarter statistics
         stats_filename = "/tmp/training_quarter_stats_"\
@@ -318,7 +321,7 @@ def _write_debug_files(term_id, eligible_members, quarter_stats):
             f.write(f"# Quarter statistics for training course: {term_id}\n")
             f.write(f"# Generated: {datetime.now().isoformat()}\n\n")
             f.write(f"{'Quarter':<10} {'Registration':<12} {'Admissions':<12}"
-                    f"{'Census Status'}\n")
+                    f" {'Census Status'}\n")
             f.write("-" * 70 + "\n")
 
             total_registration = 0
