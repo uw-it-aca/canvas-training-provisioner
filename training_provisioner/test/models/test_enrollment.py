@@ -143,8 +143,9 @@ class EnrollmentModelTest(TrainingCourseTestCase):
                 enrollment.save()
                 break
 
-        self.skipTest("no alternate section found for course "
-                      f" {enrollment.course.course_id}")
+        if not old_section:
+            self.skipTest("no alternate section found for course "
+                          f" {enrollment.course.course_id}")
 
         Enrollment.objects._add_enrollment(integration_id, training_course)
 
