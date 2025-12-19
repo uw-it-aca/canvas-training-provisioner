@@ -93,7 +93,7 @@ gcsCredentials:
   secretName: test-apps.studenttraining.uw.edu-gcs-credentials
 
 cronjob:
-  enabled: false
+  enabled: true
   jobs:
     - name: load-training-courses
       schedule: "40 8 * * 1-5"
