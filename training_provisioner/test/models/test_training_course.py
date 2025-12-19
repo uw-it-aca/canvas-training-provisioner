@@ -3,6 +3,7 @@
 
 from training_provisioner.test import TrainingCourseTestCase
 from training_provisioner.models.training_course import TrainingCourse
+from training_provisioner.models.course import Course
 from mock import patch
 
 
@@ -33,3 +34,19 @@ class TrainingCourseModelTest(TrainingCourseTestCase):
                 member_course,
                 (f"{course.course_id_prefix}"
                  f"{self.member_course_number(member):03d}"))
+
+    def test_training_course_save(self):
+        training_course = TrainingCourse.objects.get(pk=1)
+        training_course.load_courses_and_enrollments()
+
+        # simulate post-provision state
+        updated = Course.objects.filter(
+            training_course=training_course).update(
+                priority=Course.PRIORITY_NONE)
+
+        training_course.course_name = "New Name"
+        training_course.save()
+
+        self.assertEqual(Course.objects.filter(
+            training_course=training_course,
+            priority__gt=Course.PRIORITY_NONE).count(), updated)
