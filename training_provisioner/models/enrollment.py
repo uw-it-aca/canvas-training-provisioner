@@ -10,6 +10,7 @@ from training_provisioner.models.training_course import TrainingCourse
 from training_provisioner.exceptions import (
     MissingCourseException, MissingSectionException, EnrollmentCourseMismatch)
 from django.utils.timezone import localtime
+import re
 import logging
 import json
 
@@ -104,23 +105,37 @@ class EnrollmentManager(models.Manager):
         for studentno in candidates:
             has_previous_101_enrollment = self._has_previous_101_enrollment(
                 studentno, training_course)
+            has_same_year_enrollment = self.\
+                _has_enrollment_in_same_academic_year(
+                    studentno, training_course)
 
             if training_course.course_type == TrainingCourse.COURSE_TYPE_101:
-                # For 101 courses, exclude students who already have a
-                # previous active 101 enrollment from different academic year
-                # See note above about deleted enrollments
-                if not has_previous_101_enrollment:
-                    filtered_candidates.append(studentno)
-                else:
+                # For 101 courses:
+                # 1. Exclude students who already have enrollment in same
+                #   academic year
+                # 2. Exclude students who have previous 101 enrollment from
+                #   different academic year
+                if has_same_year_enrollment:
+                    logger.debug(f"Excluding {studentno} from 101 course - "
+                                 f"already enrolled in same academic year")
+                elif has_previous_101_enrollment:
                     logger.debug(f"Excluding {studentno} from 101 course - "
                                  f"has previous 101 enrollment from different "
                                  f"academic year")
+                else:
+                    filtered_candidates.append(studentno)
 
             elif training_course.course_type == \
                     TrainingCourse.COURSE_TYPE_BOOSTER:
-                # For booster courses, only include students who have a
-                # previous active 101 enrollment from different academic year
-                if has_previous_101_enrollment:
+                # For booster courses:
+                # 1. Exclude students who already have enrollment in same
+                #   academic year
+                # 2. Only include students who have previous 101 enrollment
+                #   from different academic year
+                if has_same_year_enrollment:
+                    logger.debug(f"Excluding {studentno} from booster course -"
+                                 f" already enrolled in same academic year")
+                elif has_previous_101_enrollment:
                     filtered_candidates.append(studentno)
                 else:
                     logger.debug(f"Excluding {studentno} from booster "
@@ -137,6 +152,59 @@ class EnrollmentManager(models.Manager):
                     f"candidates")
 
         return filtered_candidates
+
+    def _get_academic_year(self, term_id):
+        """
+        Extract academic year from term_id.
+
+        Args:
+            term_id (str): Term identifier like 'AY2025-2026-101' or
+                'AY2025-2026-B'
+
+        Returns:
+            str: Academic year portion like 'AY2025-2026'
+        """
+
+        term_parts = re.match(r"^AY(\d{4})-(\d{4})(-.*)?$", term_id)
+        if not term_parts:
+            raise ValueError(
+                f"Invalid term_id format: {term_id}")
+        return f"AY{term_parts.group(1)}-{term_parts.group(2)}"
+
+    def _has_enrollment_in_same_academic_year(self,
+                                              studentno,
+                                              current_training_course):
+        """
+        Check if a student has any active enrollment in the same academic year
+        as the current training course.
+
+        Args:
+            studentno (str): Student number (integration_id to Canvas)
+            current_training_course: Current TrainingCourse instance
+
+        Returns:
+            bool: True if student has enrollment in same academic year,
+                False otherwise
+        """
+        current_academic_year = self._get_academic_year(
+            current_training_course.term_id)
+
+        # Check for any active enrollment in the same academic year
+        same_year_enrollments = self.filter(
+            integration_id=studentno,
+            deleted_date__isnull=True
+        ).exclude(
+            # Exclude current course
+            course__training_course=current_training_course
+        )
+
+        for enrollment in same_year_enrollments:
+            enrollment_academic_year = self._get_academic_year(
+                enrollment.course.training_course.term_id)
+            if enrollment_academic_year == current_academic_year:
+                return True
+
+        return False
 
     def _has_previous_101_enrollment(self, studentno, current_training_course):
         """

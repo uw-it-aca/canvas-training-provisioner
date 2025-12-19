@@ -44,6 +44,7 @@ def title_vi_membership_candidates(training_course):
         list: integration_ids of eligible students
     """
     eligible_members = set()
+    quarter_stats = {}
 
     # Use term_id to determine academic year. Term SIS IDs may include a
     # suffix after the standard AYYYYY-YYYY format, so we ignore that here.
@@ -65,16 +66,35 @@ def title_vi_membership_candidates(training_course):
         start_quarter = 20262  # Spring 2026 only for AY25-26 course
     quarters_in_ay = get_quarters_in_ay(training_course_academic_year,
                                         start_quarter)
+
     for quartercode in quarters_in_ay:
         quarter_info = get_info_for_quarter(quartercode)
-        for student_id in get_students_from_registration(quartercode):
+        registration_students = get_students_from_registration(quartercode)
+        admissions_students = []
+
+        # Track registration students
+        for student_id in registration_students:
             eligible_members.add(student_id)
+
         if quarter_info['CensusDayStatus'] == 'Before Census Day':
             # We will only add students from the admissions table if
             # census day has not yet occurred for the supplied quarter
             # otherwise we would expect to find them via registration
-            for student_id in get_students_from_admissions(quartercode):
+            admissions_students = get_students_from_admissions(quartercode)
+            for student_id in admissions_students:
                 eligible_members.add(student_id)
+
+        # Track statistics for this quarter
+        quarter_stats[quartercode] = {
+            'registration_count': len(registration_students),
+            'admissions_count': len(admissions_students),
+            'census_day_status': quarter_info['CensusDayStatus']
+        }
+
+    # Write debug files for auditing purposes
+    _write_debug_files(training_course.term_id,
+                       eligible_members,
+                       quarter_stats)
 
     return list(eligible_members)
 
@@ -261,3 +281,62 @@ def get_students_from_admissions(quarter_code):
 
     df = execute_edw_query(query)
     return df['StudentNumber'].tolist()
+
+
+def _write_debug_files(term_id, eligible_members, quarter_stats):
+    """
+    Write debug and audit files for membership analysis.
+
+    Args:
+        term_id (str): Training course term ID
+        eligible_members (set): Set of eligible student IDs
+        quarter_stats (dict): Statistics for each quarter
+    """
+    from datetime import datetime
+
+    # Create safe filename from term_id
+    safe_term_id = re.sub(r'[^a-zA-Z0-9\-]', '_', term_id)
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+    try:
+        # Write eligible members list
+        members_filename = "/tmp/training_eligible_members_" \
+            f"{safe_term_id}_{timestamp}.txt"
+        with open(members_filename, 'w') as f:
+            f.write(f"# Eligible members for training course: {term_id}\n")
+            f.write(f"# Generated: {datetime.now().isoformat()}\n")
+            f.write(f"# Total count: {len(eligible_members)}\n\n")
+            for member_id in sorted(eligible_members):
+                f.write(f"{member_id}\n")
+
+        logger.info(f"Wrote eligible members list to: {members_filename}")
+
+        # Write quarter statistics
+        stats_filename = "/tmp/training_quarter_stats_"\
+            f"{safe_term_id}_{timestamp}.txt"
+        with open(stats_filename, 'w') as f:
+            f.write(f"# Quarter statistics for training course: {term_id}\n")
+            f.write(f"# Generated: {datetime.now().isoformat()}\n\n")
+            f.write(f"{'Quarter':<10} {'Registration':<12} {'Admissions':<12}"
+                    f"{'Census Status'}\n")
+            f.write("-" * 70 + "\n")
+
+            total_registration = 0
+            total_admissions = 0
+
+            for quarter, stats in sorted(quarter_stats.items()):
+                f.write(f"{quarter:<10} {stats['registration_count']:<12} "
+                        f"{stats['admissions_count']:<12}"
+                        f"{stats['census_day_status']}\n")
+                total_registration += stats['registration_count']
+                total_admissions += stats['admissions_count']
+
+            f.write("-" * 70 + "\n")
+            f.write(f"{'TOTAL':<10} {total_registration:<12}"
+                    f"{total_admissions:<12}\n")
+            f.write(f"\nUnique eligible members: {len(eligible_members)}\n")
+
+        logger.info(f"Wrote quarter statistics to: {stats_filename}")
+
+    except Exception as e:
+        logger.error(f"Failed to write debug files for {term_id}: {e}")
