@@ -65,7 +65,7 @@ cronjob:
         requests:
           cpu: 250m
           memory: 500Mi
-      initContainers:
+      sidecarContainers:
         forwarder:
           restartPolicy: Always
           image: "us-docker.pkg.dev/uwit-mci-axdd/containers/uw-ssh-client:89695b2"
