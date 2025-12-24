@@ -111,7 +111,8 @@ class EnrollmentManager(models.Manager):
 
         logger.info(f"Enrollment processing completed for "
                     f"{training_course.course_name}: "
-                    f"{enrollments_added} added, {enrollments_dropped} "
+                    f"{candidate_count} candidates found, "
+                    f"{enrollments_added} processed, {enrollments_dropped} "
                     f"dropped in {duration:.3f}s")
 
         # Write metrics to output file in /tmp
