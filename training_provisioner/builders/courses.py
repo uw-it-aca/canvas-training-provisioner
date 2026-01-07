@@ -57,6 +57,6 @@ class CourseBuilder(Builder):
             'course_id': enrollment.course.course_id,
             'section_id': enrollment.section.section_id if (
                 enrollment.section) else None,
-            'integration_id': enrollment.integration_id,
+            'integration_id': enrollment.integration_id.rjust(7, '0'),
             'status': 'active' if enrollment.is_active else 'inactive'
         }
