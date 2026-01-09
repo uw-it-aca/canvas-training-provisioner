@@ -38,6 +38,17 @@ class EnrollmentManager(models.Manager):
         membership_candidates = training_course.get_course_membership()
         candidate_count = len(membership_candidates)
 
+        # Circuit breaker: if no candidates are found and there are existing
+        # enrollments, it may indicate a failure in membership retrieval from
+        # EDW. Skip processing to prevent accidental deletion of enrollments.
+        if candidate_count == 0 and existing_enrollment_count > 0:
+            logger.warning(f"No membership candidates found for "
+                           f"{training_course.course_name} but "
+                           f"{existing_enrollment_count} existing enrollments "
+                           f"present. Skipping enrollment processing to "
+                           f"prevent accidental deletion of all users.")
+            return []
+
         # Filter candidates based on course type and enrollments in other
         # courses. If current course type is '101', exclude students with
         # previous '101' enrollments from different academic years and
