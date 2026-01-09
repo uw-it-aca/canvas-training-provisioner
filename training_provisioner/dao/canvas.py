@@ -47,3 +47,11 @@ def get_sis_import_status(import_id):
 
 def delete_sis_import(import_id):
     return SISImport().delete_import(SISImportModel(import_id=str(import_id)))
+
+
+def get_sis_imports(params={}):
+    return SISImport().get_imports(params)
+
+
+def get_import_errors(sis_import):
+    return SISImport().get_import_errors(sis_import)
