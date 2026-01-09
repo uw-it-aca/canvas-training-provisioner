@@ -104,7 +104,7 @@ class EnrollmentModelTest(TrainingCourseTestCase):
             integration_id=integration_id)
 
         # course that _add_enrollment will assign to enrollment
-        new_course = enrollment.course
+        # new_course = enrollment.course
 
         # change enrollment to "old" course
         enrollment_six = Enrollment.objects.get(pk=6)

@@ -20,29 +20,32 @@ class ReenrollmentFunctionalityTest(TrainingCourseTestCase):
         # Set up course
         training_course = TrainingCourse.objects.get(pk=1)
 
-        # Mock membership to return one user
+        # Mock membership to return two users initially
         with patch('training_provisioner.models.training_course.'
                    'TrainingCourse.get_course_membership') as mock_membership:
-            mock_membership.return_value = ['1001']
+            mock_membership.return_value = ['1001', '1002']
 
-            # Initial enrollment
+            # Initial enrollment of both users
             training_course.load_courses_and_enrollments()
 
-            # Check that enrollment was created
-            enrollment = Enrollment.objects.get(integration_id='1001')
-            self.assertIsNone(enrollment.deleted_date)
-            self.assertEqual(enrollment.priority, Enrollment.PRIORITY_DEFAULT)
+            # Check that both enrollments were created
+            enrollment1 = Enrollment.objects.get(integration_id='1001')
+            enrollment2 = Enrollment.objects.get(integration_id='1002')
+            self.assertIsNone(enrollment1.deleted_date)
+            self.assertIsNone(enrollment2.deleted_date)
 
-            # Mock to return empty list (user removed)
-            mock_membership.return_value = []
+            # Mock to return only one user (1002 removed, but not empty list)
+            mock_membership.return_value = ['1001']
             training_course.load_courses_and_enrollments()
 
-            # Check that enrollment was marked as deleted
-            enrollment.refresh_from_db()
-            self.assertIsNotNone(enrollment.deleted_date)
+            # Check that enrollment2 was marked as deleted
+            enrollment1.refresh_from_db()
+            enrollment2.refresh_from_db()
+            self.assertIsNone(enrollment1.deleted_date)
+            self.assertIsNotNone(enrollment2.deleted_date)
 
-            # Mock to return the user again (reenrollment)
-            mock_membership.return_value = ['1001']
+            # Mock to return both users again (1002 reenrollment)
+            mock_membership.return_value = ['1001', '1002']
 
             # Capture logs to verify reenrollment message
             with self.assertLogs('training_provisioner.models.enrollment',
@@ -50,13 +53,15 @@ class ReenrollmentFunctionalityTest(TrainingCourseTestCase):
                 training_course.load_courses_and_enrollments()
 
                 # Check that reenrollment was logged
-                self.assertTrue(any('reactivate enrollment 1001' in
+                self.assertTrue(any('reactivate enrollment 1002' in
                                     message for message in log.output))
 
-            # Check that enrollment deleted_date was cleared
-            enrollment.refresh_from_db()
-            self.assertIsNone(enrollment.deleted_date)
-            self.assertEqual(enrollment.priority, Enrollment.PRIORITY_DEFAULT)
+            # Check that enrollment2 deleted_date was cleared
+            enrollment1.refresh_from_db()
+            enrollment2.refresh_from_db()
+            self.assertIsNone(enrollment1.deleted_date)
+            self.assertIsNone(enrollment2.deleted_date)
+            self.assertEqual(enrollment2.priority, Enrollment.PRIORITY_DEFAULT)
 
             # Verify only one enrollment record exists (not multiple)
             enrollments = Enrollment.objects.filter(integration_id='1001')
