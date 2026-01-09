@@ -46,13 +46,13 @@ class Command(BaseCommand):
             # Mark enrollment's course to trigger import
             if course.priority == Course.PRIORITY_NONE:
                 course.priority = Course.PRIORITY_DEFAULT
-#                course.save()
+                course.save()
                 logger.info(f"update course {course_id} priority")
 
             # Reset enrollment to unprovisioned state
             enrollment.provisioned_date = None
             enrollment.priority = Enrollment.PRIORITY_DEFAULT
-#            enrollment.save()
+            enrollment.save()
             logger.info(f"Prioritize enrollment {integration_id} in "
                         f"course {course_id}")
 
