@@ -21,8 +21,8 @@ class Command(BaseCommand):
         latest_import = self.get_most_recent_import()
 
         if (latest_import
-            and latest_import.progress == 100
-            and latest_import.workflow_state == 'imported_with_messages'):
+                and latest_import.progress == 100
+                and latest_import.workflow_state == 'imported_with_messages'):
             self.process_enrollment_errors(latest_import)
 
     def process_enrollment_errors(self, sis_import):
