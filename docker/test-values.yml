@@ -55,7 +55,7 @@ cronjob:
   enabled: true
   jobs:
     - name: load-training-courses
-      schedule: "40 8 * * 1-5"
+      schedule: "12 8 * * 1-5"
       command: ["/scripts/management_command.sh"]
       args: ["load_training_courses"]
       resources:
@@ -98,8 +98,19 @@ cronjob:
             - "sh"
             - "-c"
             - 'mkdir -m 0700 ~/.ssh && echo "${PROXY_ID_KEY}" > ~/.ssh/id_ecdsa && chmod 400 ~/.ssh/id_ecdsa && ssh ${PROXY_ID}@${PROXY_HOSTNAME} -o StrictHostKeyChecking=no -N -L 127.0.0.1:${LOCAL_PORT}:${TARGET_HOSTNAME}:${TARGET_PORT}'
+    - name: reload-failed-enrollments
+      schedule: "29 9 * * 1-5"
+      command: ["/scripts/management_command.sh"]
+      args: ["reload_enrollment_errors"]
+      resources:
+        limits:
+          cpu: 250m
+          memory: 500Mi
+        requests:
+          cpu: 50m
+          memory: 250Mi
     - name: import-training-courses
-      schedule: "40 9 * * 1-5"
+      schedule: "50 9 * * 1-5"
       command: ["/scripts/management_command.sh"]
       args: ["import_training_courses"]
       resources:
