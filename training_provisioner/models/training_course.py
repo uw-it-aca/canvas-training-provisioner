@@ -145,8 +145,17 @@ class TrainingCourse(models.Model):
     def get_course_membership(self) -> list[str]:
         # Call the appropriate membership function from dao.membership
         # based on membership choice type
+        # Warn if empty membership list is returned
         try:
-            return eval(f"{self.get_membership_type_display()}(self)")
+            membership_list = eval(
+                f"{self.get_membership_type_display()}(self)")
+            if not membership_list:
+                logger.warning(f"Empty membership result for training course "
+                               f"{self.course_name} ("
+                               f"{self.blueprint_course_id} - {self.term_id})."
+                               " This may indicate a failure in membership "
+                               "retrieval.")
+            return membership_list
         except Exception as ex:
             raise ValueError(f"Invalid membership: {ex}")
 
