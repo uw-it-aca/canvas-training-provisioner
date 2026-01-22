@@ -102,7 +102,7 @@ class Command(BaseCommand):
                 except Exception as err:
                     failed_count += 1
                     error_msg = f"Error {action_taken}ing course "
-                    f"{course_sis_id}: {err}"
+                    error_msg += f"{course_sis_id}: {err}"
                     self.stdout.write(self.style.ERROR(f"{error_msg}"))
                     logger.error(error_msg)
 
