@@ -1,4 +1,4 @@
-# Copyright 2025 UW-IT, University of Washington
+# Copyright 2026 UW-IT, University of Washington
 # SPDX-License-Identifier: Apache-2.0
 
 from django.conf import settings
@@ -78,7 +78,8 @@ class SAMLAdminTrainingCourseModel(SAMLAdminModel):
 
         if obj and obj.pk:  # editing an existing object
             dependent_fields = [
-                'course_count', 'membership_type', 'course_type']
+                'course_count', 'membership_type', 'course_type',
+                'term_id', 'blueprint_course_id']
 
         return self.readonly_fields + dependent_fields
 
