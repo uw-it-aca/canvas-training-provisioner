@@ -246,7 +246,7 @@ def get_students_from_registration(quarter_code) -> list[str]:
             AND rc.regis_class NOT IN (6, 9, 10)
     """
     df = execute_edw_query(query)
-    return df['StudentNumber'].astype(str).tolist()
+    return df['StudentNumber'].astype(str).str.zfill(7).tolist()
 
 
 def get_students_from_admissions(quarter_code) -> list[str]:
@@ -278,7 +278,7 @@ def get_students_from_admissions(quarter_code) -> list[str]:
     """
 
     df = execute_edw_query(query)
-    return df['StudentNumber'].astype(str).tolist()
+    return df['StudentNumber'].astype(str).str.zfill(7).tolist()
 
 
 def _write_debug_files(term_id,
