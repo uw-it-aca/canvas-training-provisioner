@@ -8,7 +8,8 @@ from training_provisioner.models.course import Course
 from training_provisioner.models.section import Section
 from training_provisioner.models.training_course import TrainingCourse
 from training_provisioner.exceptions import (
-    MissingCourseException, MissingSectionException, EnrollmentCourseMismatch)
+    MissingCourseException, MissingSectionException, EnrollmentCourseMismatch,
+    DataAccessException)
 from django.utils.timezone import localtime
 import re
 import logging
@@ -40,14 +41,15 @@ class EnrollmentManager(models.Manager):
 
         # Circuit breaker: if no candidates are found and there are existing
         # enrollments, it may indicate a failure in membership retrieval from
-        # EDW. Skip processing to prevent accidental deletion of enrollments.
+        # EDW. Raise an exception to prevent accidental deletion of enrollments
         if candidate_count == 0 and existing_enrollment_count > 0:
-            logger.warning(f"No membership candidates found for "
-                           f"{training_course.course_name} but "
-                           f"{existing_enrollment_count} existing enrollments "
-                           f"present. Skipping enrollment processing to "
-                           f"prevent accidental deletion of all users.")
-            return []
+            error_msg = (f"No membership candidates found for "
+                         f"{training_course.course_name} but "
+                         f"{existing_enrollment_count} existing enrollments "
+                         f"present. This may indicate a membership retrieval "
+                         f"failure from EDW.")
+            logger.error(error_msg)
+            raise DataAccessException(error_msg)
 
         # Filter candidates based on course type and enrollments in other
         # courses. If current course type is '101', exclude students with

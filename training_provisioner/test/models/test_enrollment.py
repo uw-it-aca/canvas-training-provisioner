@@ -7,7 +7,8 @@ from training_provisioner.models.training_course import TrainingCourse
 from training_provisioner.models.course import Course
 from training_provisioner.models.section import Section
 from training_provisioner.models.enrollment import Enrollment
-from training_provisioner.exceptions import EnrollmentCourseMismatch
+from training_provisioner.exceptions import (EnrollmentCourseMismatch,
+                                             DataAccessException)
 from mock import patch
 
 
@@ -165,3 +166,36 @@ class EnrollmentModelTest(TrainingCourseTestCase):
             enrollments[0].deleted_date if (
                 enrollments[0].section == new_section) else
             enrollments[1].deleted_date)
+
+    @patch('training_provisioner.models.'
+           'training_course.TrainingCourse.get_course_membership')
+    def test_circuit_breaker_exception_on_empty_membership(self,
+                                                           mock_membership):
+        """Test that DataAccessException is raised when membership retrieval
+        returns empty list but existing enrollments are present."""
+
+        # First create some enrollments to establish existing state
+        Course.objects.add_models_for_training_course(self.training_course)
+        Section.objects.add_models_for_training_course(self.training_course)
+
+        # Create some initial enrollments
+        mock_membership.return_value = ['5432199', '5432200']
+        Enrollment.objects.add_models_for_training_course(self.training_course)
+
+        # Verify we have existing enrollments
+        existing_count = Enrollment.objects.filter(
+            course__training_course=self.training_course).count()
+        self.assertGreater(existing_count, 0)
+
+        # Now simulate membership retrieval failure (empty list)
+        mock_membership.return_value = []
+
+        # This should raise a DataAccessException
+        with self.assertRaises(DataAccessException) as context:
+            Enrollment.objects.add_models_for_training_course(
+                self.training_course)
+
+        # Verify the exception message contains expected information
+        self.assertIn("No membership candidates found", str(context.exception))
+        self.assertIn("existing enrollments present", str(context.exception))
+        self.assertIn("membership retrieval failure", str(context.exception))
