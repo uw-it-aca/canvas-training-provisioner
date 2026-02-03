@@ -17,9 +17,14 @@ logger = getLogger(__name__)
 class Command(BaseCommand):
     help = "Re-prioritize failed enrollment imports"
 
-    def handle(self, *args, **options):
-        latest_import = self.get_most_recent_import()
+    def add_arguments(self, parser):
+        parser.add_argument(
+            'import_id', type=int, nargs='?', default=None,
+            help='Canvas SIS Import ID to process.  Default is most recent.')
 
+    def handle(self, *args, **options):
+        latest_import = options.get(
+            'import_id', self.get_most_recent_import())
         if (latest_import
                 and latest_import.progress == 100
                 and latest_import.workflow_state == 'imported_with_messages'):
@@ -57,12 +62,11 @@ class Command(BaseCommand):
                         f"course {course_id}")
 
         except Exception as ex:
-            logger.error(f"Malformed row ({row_info}) info: {ex}")
+            logger.error(f"Malformed row ({ex}): {sis_error.row_info}")
         except Course.DoesNotExist:
-            logger.error(f"NO Course for {integration_id} in "
-                         f"course {course_id}")
+            logger.error(f"Missing Course ({course_id}) for {integration_id}")
         except Enrollment.DoesNotExist:
-            logger.error(f"NO Enrollment for {integration_id} in "
+            logger.error(f"Missing Enrollment for {integration_id} in "
                          f"course {course_id}")
 
     def get_csv_row(self, row_info):
