@@ -23,7 +23,8 @@ class ReenrollmentFunctionalityTest(TrainingCourseTestCase):
         # Mock membership to return two users initially
         with patch('training_provisioner.models.training_course.'
                    'TrainingCourse.get_course_membership') as mock_membership:
-            mock_membership.return_value = ['1001', '1002']
+            mock_membership.return_value = {'1001': ['20254R', '20261A'],
+                                            '1002': ['20254R', '20261A']}
 
             # Initial enrollment of both users
             training_course.load_courses_and_enrollments()
@@ -35,7 +36,7 @@ class ReenrollmentFunctionalityTest(TrainingCourseTestCase):
             self.assertIsNone(enrollment2.deleted_date)
 
             # Mock to return only one user (1002 removed, but not empty list)
-            mock_membership.return_value = ['1001']
+            mock_membership.return_value = {'1001': ['20254R', '20261A']}
             training_course.load_courses_and_enrollments()
 
             # Check that enrollment2 was marked as deleted
@@ -45,7 +46,8 @@ class ReenrollmentFunctionalityTest(TrainingCourseTestCase):
             self.assertIsNotNone(enrollment2.deleted_date)
 
             # Mock to return both users again (1002 reenrollment)
-            mock_membership.return_value = ['1001', '1002']
+            mock_membership.return_value = {'1001': ['20254R', '20261A'],
+                                            '1002': ['20254R', '20261A']}
 
             # Capture logs to verify reenrollment message
             with self.assertLogs('training_provisioner.models.enrollment',

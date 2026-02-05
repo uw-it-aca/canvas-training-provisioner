@@ -26,11 +26,12 @@ class EnrollmentModelTest(TrainingCourseTestCase):
         Enrollment.objects.add_models_for_training_course(self.training_course)
 
     def test_enrollment_model(self):
+        membership = self.get_membership()
         self.assertTrue(
             Enrollment.objects.all().count(),
-            len(self.get_membership()))
+            len(membership))
 
-        for i, member in enumerate(self.get_membership()):
+        for i, member in enumerate(membership.keys()):
             enrollment = Enrollment.objects.get(integration_id=member)
             self.assertEqual(
                 enrollment.course.course_id,
@@ -59,7 +60,8 @@ class EnrollmentModelTest(TrainingCourseTestCase):
         Enrollment.objects.update(priority=Enrollment.PRIORITY_NONE)
 
         student_number = '5432123'
-        mock_membership.return_value = self.get_membership() + [student_number]
+        mock_membership.return_value = dict(self.get_membership(),
+                                            **{student_number: ["20262R"]})
 
         Enrollment.objects.add_models_for_training_course(self.training_course)
 
@@ -81,10 +83,13 @@ class EnrollmentModelTest(TrainingCourseTestCase):
         Enrollment.objects.update(priority=Enrollment.PRIORITY_NONE)
 
         membership = self.get_membership()
-        student_number = membership[2]
-        del membership[2]
+        membership_keys = list(membership.keys())
+        student_number = membership_keys[2]
+        # Create new membership without one student
+        modified_membership = {k: v for i, (k, v) in enumerate(
+            membership.items()) if i != 2}
 
-        mock_membership.return_value = membership
+        mock_membership.return_value = modified_membership
 
         Enrollment.objects.add_models_for_training_course(self.training_course)
 

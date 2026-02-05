@@ -256,7 +256,8 @@ class IntegrationIdStringHandlingTest(TrainingCourseTestCase):
         manager = Enrollment.objects
 
         # Test with string candidates (correct)
-        string_candidates = ["5432101", "5432102"]
+        string_candidates = {"5432101": ["20254R", "20261A"],
+                             "5432102": ["20254R", "20261A"]}
         filtered = manager._filter_candidates_by_course_type(
             string_candidates, self.training_course)
 

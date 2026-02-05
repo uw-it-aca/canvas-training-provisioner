@@ -34,9 +34,14 @@ class MembershipDAOTest(TrainingCourseTestCase):
         mock_data = ["student1", "student2", "student3"]
         mock_file.return_value.read.return_value = json.dumps(mock_data)
 
+        # Expected dictionary format with mock terms
+        expected_result = {"student1": ["20254R", "20261R"],
+                           "student2": ["20254R", "20261R"],
+                           "student3": ["20254R", "20261R"]}
+
         result = test_membership(self.training_course)
 
-        self.assertEqual(result, mock_data)
+        self.assertEqual(result, expected_result)
         mock_path.assert_called_once_with("membership.json")
 
     @patch('training_provisioner.dao.membership.open',
@@ -52,7 +57,7 @@ class MembershipDAOTest(TrainingCourseTestCase):
 
         result = test_membership(self.training_course)
 
-        self.assertEqual(result, [])
+        self.assertEqual(result, {})
         mock_logger.error.assert_called_once()
 
     def test_get_quarters_in_ay_valid_format(self):
@@ -314,8 +319,13 @@ class TitleVIMembershipTest(TrainingCourseTestCase):
 
         # Should get students from both registration and admissions
         # in Spring 2026
-        expected = ['1111111', '2222222', '3333333', '4444444']
-        self.assertEqual(sorted(result), sorted(expected))
+        expected_students = ['1111111', '2222222', '3333333', '4444444']
+        self.assertEqual(sorted(result.keys()), sorted(expected_students))
+
+        # Verify all students have eligible terms
+        for student in result:
+            self.assertIsInstance(result[student], list)
+            self.assertTrue(len(result[student]) > 0)
 
         # Verify get_quarters_in_ay was called with Spring 2026 start
         mock_quarters.assert_called_once_with("2025/2026", 20262)
@@ -360,7 +370,7 @@ class TitleVIMembershipTest(TrainingCourseTestCase):
 
         # Should get all registration students plus admissions for
         # before-census quarters only
-        expected = [
+        expected_students = [
             '1001',
             '1002',
             '2001',
@@ -373,7 +383,14 @@ class TitleVIMembershipTest(TrainingCourseTestCase):
             '5002',
             '6001',
             '6002']
-        self.assertEqual(sorted(result), sorted(expected))
+
+        # Verify we got the expected students as keys in the dictionary
+        self.assertEqual(sorted(result.keys()), sorted(expected_students))
+
+        # Verify that each student has eligible terms
+        for student in result:
+            self.assertIsInstance(result[student], list)
+            self.assertTrue(len(result[student]) > 0)
 
         # Verify get_quarters_in_ay was called without start quarter
         mock_quarters.assert_called_once_with("2026/2027", None)
@@ -418,8 +435,15 @@ class TitleVIMembershipTest(TrainingCourseTestCase):
         result = title_vi_membership_candidates(self.training_course)
 
         # Should deduplicate - each student should appear only once
-        expected = ['1001', '1002', '1003', '1004', '2001', '2002']
-        self.assertEqual(sorted(result), sorted(expected))
+        expected_students = ['1001', '1002', '1003', '1004', '2001', '2002']
+        self.assertEqual(sorted(result.keys()), sorted(expected_students))
+
+        # Verify that duplicate students have terms from multiple sources
+        # Student 1002 should have terms from both Winter and Spring
+        # registration
+        self.assertIn('1002', result)
+        student_1002_terms = result['1002']
+        self.assertTrue(len(student_1002_terms) >= 2)  # At least two terms
 
     def test_title_vi_booster_membership_candidates(self):
         """
@@ -427,12 +451,12 @@ class TitleVIMembershipTest(TrainingCourseTestCase):
         """
         with patch('training_provisioner.dao.membership.'
                    'title_vi_membership_candidates') as mock_main:
-            mock_main.return_value = [1234, 5678]
+            mock_main.return_value = {"1234": ["20261R"], "5678": ["20262A"]}
 
             result = title_vi_booster_membership_candidates(
                 self.training_course)
 
-            self.assertEqual(result, [1234, 5678])
+            self.assertEqual(result, {"1234": ["20261R"], "5678": ["20262A"]})
             mock_main.assert_called_once_with(self.training_course)
 
 
@@ -501,5 +525,10 @@ class MembershipIntegrationTest(TrainingCourseTestCase):
 
             # Test the main membership function
             result = title_vi_membership_candidates(self.training_course)
-            expected = ['1111111', '2222222', '3333333', '4444444']
-            self.assertEqual(sorted(result), sorted(expected))
+            expected_students = ['1111111', '2222222', '3333333', '4444444']
+            self.assertEqual(sorted(result.keys()), sorted(expected_students))
+
+            # Verify all students have eligible terms
+            for student in result:
+                self.assertIsInstance(result[student], list)
+                self.assertTrue(len(result[student]) > 0)

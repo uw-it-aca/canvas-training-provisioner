@@ -456,7 +456,7 @@ class Enrollment(ImportResource):
     def merge_eligible_terms(self, new_terms):
         """
         Merge new eligible terms with existing ones, maintaining uniqueness.
-        
+
         Args:
             new_terms (list): List of new eligible terms to merge
         """

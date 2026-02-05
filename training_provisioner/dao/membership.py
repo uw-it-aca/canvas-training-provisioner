@@ -146,7 +146,7 @@ def title_vi_membership_candidates(training_course) -> dict[str, list[str]]:
 
     # Write debug files for auditing purposes
     _write_debug_files(training_course.term_id,
-                       set(eligible_members_with_terms.keys()),
+                       set(eligible_members_with_terms._members.keys()),
                        quarter_stats, True)
 
     return eligible_members_with_terms.to_dict()
