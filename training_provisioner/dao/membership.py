@@ -11,28 +11,73 @@ from training_provisioner.dao.edw import execute_edw_query
 logger = logging.getLogger(__name__)
 
 
+class MemberList:
+    """
+    Class to represent a list of members eligible for a training course.
+    """
+    _members = {}
+
+    def add_members(self, members: list[str], qtrcode: str, regtype: str):
+        """
+        Add members with eligible terms for a training course.
+
+        Args:
+            members (list): list of member IDs to add
+            qtrcode (str): quarter code to associate with these members
+            regtype (str): registration type, either "R" ('registration')
+            or 'A' ('admissions')
+        """
+        if members is None:
+            return
+
+        regtype = regtype.upper() if regtype else ''
+
+        try:
+            for member in members:
+                if member not in self._members:
+                    self._members[member] = set()
+                self._members[member].add(qtrcode+regtype)
+        except TypeError as e:
+            raise TypeError(f"members must be an iterable, got "
+                            f"{type(members).__name__}") from e
+
+    def to_dict(self):
+        """
+        Convert the member list to a dictionary mapping member IDs to lists of
+        eligible course codes.
+
+        Returns:
+            dict: mapping of member IDs to lists of course codes
+        """
+        return {member: sorted(courses)
+                for member, courses in self._members.items()}
+
+
 def test_membership(training_course):
     """
-    Return list of integration_ids for testing
+    Return dictionary mapping integration_ids to eligible terms for testing
     """
     try:
         with open(mock_file_path("membership.json")) as f:
-            return json.load(f)
+            member_list = json.load(f)
+            # Convert list to dictionary format with mock terms
+            return {member: ["20254R", "20261R"] for member in member_list}
     except Exception as e:
         logger.error(f"test membership: {e}")
 
-    return []
+    return {}
 
 
-def title_vi_membership_candidates(training_course) -> list[str]:
+def title_vi_membership_candidates(training_course) -> dict[str, list[str]]:
     """
     Query SDB for appropriate list of students for the supplied Title VI
     training course.
 
-    This query will return a list of eligible students, but the business logic
-    for determining who should be enrolled in a given training course will be
-    handled on a student by student basis in the EnrollmentManager since
-    enrollment depends on past enrollments.
+    This query will return a dictionary mapping eligible students to the terms
+    in which they were found eligible, but the business logic for determining
+    who should be enrolled in a given training course will be handled on a
+    student by student basis in the EnrollmentManager since enrollment depends
+    on past enrollments.
 
     Enrollment manager will also need to check for dropped students, as they
     will need to be marked as inactive in the training course.
@@ -41,9 +86,11 @@ def title_vi_membership_candidates(training_course) -> list[str]:
         training_course (TrainingCourse): training course object
 
     Returns:
-        list: integration_ids of eligible students
+        dict: mapping of integration_ids to eligible terms, e.g.
+              {"1234567": ["20254A", "20261R"], "2345678": ["20262A"]}
     """
-    eligible_members = set()
+    eligible_members_with_terms = MemberList()
+
     quarter_stats = {}
 
     # Use term_id to determine academic year. Term SIS IDs may include a
@@ -63,24 +110,32 @@ def title_vi_membership_candidates(training_course) -> list[str]:
     start_quarter = None
     if training_course_academic_year == '2025/2026' and \
        os.getenv('CANVAS_ENV') != 'EVAL':
-        start_quarter = 20262  # Spring 2026 only for AY25-26 course
+        start_quarter = 20262  # Spring 2026 **only** for AY25-26 course
     quarters_in_ay = get_quarters_in_ay(training_course_academic_year,
                                         start_quarter)
 
+    """
+    Iterate over quarters in the academic year and gather students from EDW
+    registration and optionally admissions tables (depending on census day).
+    We will track the quarters in which each student is found to be eligible
+    and store that in the Enrollment for future reporting and forensics.
+    """
     for quartercode in quarters_in_ay:
         quarter_info = get_info_for_quarter(quartercode)
         registration_students = get_students_from_registration(quartercode)
         admissions_students = []
 
-        # Track registration students
-        eligible_members.update(registration_students)
+        # Track registration students with terms
+        eligible_members_with_terms.add_members(
+            registration_students, str(quartercode), 'R')
 
         if quarter_info['CensusDayStatus'] == 'Before Census Day':
             # We will only add students from the admissions table if
             # census day has not yet occurred for the supplied quarter
             # otherwise we would expect to find them via registration
             admissions_students = get_students_from_admissions(quartercode)
-            eligible_members.update(admissions_students)
+            eligible_members_with_terms.add_members(
+                admissions_students, str(quartercode), 'A')
 
         # Track statistics for this quarter
         quarter_stats[quartercode] = {
@@ -91,10 +146,10 @@ def title_vi_membership_candidates(training_course) -> list[str]:
 
     # Write debug files for auditing purposes
     _write_debug_files(training_course.term_id,
-                       eligible_members,
+                       set(eligible_members_with_terms.keys()),
                        quarter_stats, True)
 
-    return list(eligible_members)
+    return eligible_members_with_terms.to_dict()
 
 
 def title_vi_booster_membership_candidates(training_course):
@@ -106,7 +161,7 @@ def title_vi_booster_membership_candidates(training_course):
         training_course (TrainingCourse): training course object
 
     Returns:
-        list: integration_ids of eligible students
+        dict: mapping of integration_ids to eligible terms
     """
     return title_vi_membership_candidates(training_course)
 
