@@ -35,6 +35,8 @@ class EnrollmentManager(models.Manager):
         existing_enrollment_count = len(enrolled_studentnos)
 
         # Get list of all currently eligible students from EDW
+        # returns a dictionary mapping studentno to list of eligible terms
+        # eg: {'12345678': ['20261A', '20261R'], '23456789': ['20254R']}
         membership_candidates = training_course.get_course_membership()
         candidate_count = len(membership_candidates)
 
@@ -69,7 +71,11 @@ class EnrollmentManager(models.Manager):
         for studentno in filtered_candidates:
             studentno = str(studentno)  # Ensure type consistency
             try:
-                enrollment = self._add_enrollment(studentno, training_course)
+                # Get eligible terms for this student from the membership data
+                eligible_terms = membership_candidates.get(studentno, [])
+                enrollment = self._add_enrollment(studentno,
+                                                  training_course,
+                                                  eligible_terms)
                 enrollments.append(enrollment)
                 enrolled_studentnos.discard(studentno)
                 enrollments_added += 1
@@ -137,7 +143,10 @@ class EnrollmentManager(models.Manager):
 
         return enrollments
 
-    def _filter_candidates_by_course_type(self, candidates, training_course):
+    def _filter_candidates_by_course_type(self,
+                                          candidates: dict[str, list[str]],
+                                          training_course: TrainingCourse
+                                          ) -> list[str]:
         """
         Filter candidate list based on course type and previous enrollment
         history.
@@ -150,16 +159,17 @@ class EnrollmentManager(models.Manager):
         after census.
 
         Args:
-            candidates (list): List of student integration_ids
+            candidates (dict): Dictionary mapping student integration_ids to
+                               eligible terms
             training_course: TrainingCourse instance
 
         Returns:
-            list: Filtered list of candidates
+            list: Filtered list of candidates (student IDs only)
         """
 
         filtered_candidates = []
 
-        for studentno in candidates:
+        for studentno in candidates.keys():
             has_previous_101_enrollment = self._has_previous_101_enrollment(
                 studentno, training_course)
             has_same_year_enrollment = self.\
@@ -294,8 +304,13 @@ class EnrollmentManager(models.Manager):
 
         return previous_101_enrollments
 
-    def _add_enrollment(self, studentno, training_course):
+    def _add_enrollment(self, studentno, training_course, eligible_terms=None):
         # Add or update enrollment for a given student in the training course
+        # eligible_terms should be a list of term codes,
+        # eg: ['20254A', '20261R']
+        if eligible_terms is None:
+            eligible_terms = []
+
         try:
             course_id = training_course.get_course_id_for_member(studentno)
             course = Course.objects.get(course_id=course_id)
@@ -307,6 +322,9 @@ class EnrollmentManager(models.Manager):
             enrollment = Enrollment.objects.get(
                 integration_id=studentno,
                 course__training_course=training_course)
+
+            # Merge new eligible terms with existing ones
+            enrollment.merge_eligible_terms(eligible_terms)
 
             # Check if this is a reenrollment (previously deleted user)
             if enrollment.deleted_date is not None:
@@ -320,6 +338,9 @@ class EnrollmentManager(models.Manager):
                     enrollment.section else enrollment.course.course_id
                 logger.info(f"reactivate enrollment {studentno} in "
                             f"{section_or_course_id}")
+            else:
+                # Normal case: just save the updated eligible_terms
+                enrollment.save()
 
             if enrollment.course != course:
                 raise EnrollmentCourseMismatch(
@@ -339,6 +360,8 @@ class EnrollmentManager(models.Manager):
                     integration_id=studentno, course=course, section=section)
                 enrollment.deleted_date = None
                 enrollment.priority = ImportResource.PRIORITY_DEFAULT
+                # Merge eligible terms with existing enrollment
+                enrollment.merge_eligible_terms(eligible_terms)
                 enrollment.save()
 
                 logger.info(
@@ -358,8 +381,12 @@ class EnrollmentManager(models.Manager):
                 f"{training_course.course_id_prefix} missing section model "
                 f"for: {section_id}")
         except Enrollment.DoesNotExist:
+            # Create new enrollment with eligible terms
             enrollment = Enrollment.objects.create(
-                integration_id=studentno, course=course, section=section)
+                integration_id=studentno,
+                course=course,
+                section=section,
+                eligible_terms=eligible_terms)
             self._trigger_course_import(course)
             logger.info(f"create enrollment {studentno} in "
                         f"{section_id if section_id else course_id}")
@@ -411,6 +438,7 @@ class Enrollment(ImportResource):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     section = models.ForeignKey(Section, null=True, on_delete=models.CASCADE)
     integration_id = models.CharField(max_length=8, db_index=True)
+    eligible_terms = models.JSONField(default=list, blank=True)
     created_date = models.DateTimeField(auto_now=True)
     provisioned_date = models.DateTimeField(null=True)
     deleted_date = models.DateTimeField(null=True)
@@ -425,11 +453,23 @@ class Enrollment(ImportResource):
     def is_active(self):
         return self.deleted_date is None
 
+    def merge_eligible_terms(self, new_terms):
+        """
+        Merge new eligible terms with existing ones, maintaining uniqueness.
+        
+        Args:
+            new_terms (list): List of new eligible terms to merge
+        """
+        existing_terms = set(self.eligible_terms or [])
+        new_terms_set = set(new_terms or [])
+        self.eligible_terms = list(existing_terms.union(new_terms_set))
+
     def json_data(self):
         return {
             'course': self.course.json_data(),
             'section': self.section.json_data() if self.section else None,
             'integration_id': self.integration_id,
+            'eligible_terms': self.eligible_terms,
             'created_date': localtime(self.created_date).isoformat(),
             'provisioned_date': localtime(
                 self.provisioned_date).isoformat() if (

@@ -142,20 +142,20 @@ class TrainingCourse(models.Model):
         ordinal = index + 1
         return f"{self.course_id_prefix}{ordinal:03d}"
 
-    def get_course_membership(self) -> list[str]:
+    def get_course_membership(self) -> dict[str, list[str]]:
         # Call the appropriate membership function from dao.membership
         # based on membership choice type
         # Warn if empty membership list is returned
         try:
-            membership_list = eval(
+            membership_dict = eval(
                 f"{self.get_membership_type_display()}(self)")
-            if not membership_list:
+            if not membership_dict:
                 logger.warning(f"Empty membership result for training course "
                                f"{self.course_name} ("
                                f"{self.blueprint_course_id} - {self.term_id})."
                                " This may indicate a failure in membership "
                                "retrieval.")
-            return membership_list
+            return membership_dict
         except Exception as ex:
             raise ValueError(f"Invalid membership: {ex}")
 
