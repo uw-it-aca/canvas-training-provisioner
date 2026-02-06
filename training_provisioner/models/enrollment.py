@@ -522,6 +522,41 @@ class Enrollment(ImportResource):
                                      previous_terms else None)
         )
 
+    def get_history_events(self):
+        """Get all history events for this enrollment."""
+        return self.history_events.all()
+
+    def get_latest_history_event(self):
+        """Get the most recent history event for this enrollment."""
+        return self.history_events.first()
+
+    def get_creation_event(self):
+        """Get the creation event for this enrollment."""
+        return self.history_events.filter(
+            event_type=EnrollmentHistoryEvent.EVENT_TYPE_CREATED
+        ).first()
+
+    def has_been_deleted(self):
+        """Check if this enrollment has ever been deleted."""
+        return self.history_events.filter(
+            event_type=EnrollmentHistoryEvent.EVENT_TYPE_DELETED
+        ).exists()
+
+    def has_been_reactivated(self):
+        """Check if this enrollment has ever been reactivated."""
+        return self.history_events.filter(
+            event_type=EnrollmentHistoryEvent.EVENT_TYPE_REACTIVATED
+        ).exists()
+
+    def get_eligible_terms_history(self):
+        """Get history of eligible terms changes for this enrollment."""
+        return self.history_events.filter(
+            event_type__in=[
+                EnrollmentHistoryEvent.EVENT_TYPE_CREATED,
+                EnrollmentHistoryEvent.EVENT_TYPE_UPDATED
+            ]
+        ).values('timestamp', 'eligible_terms', 'previous_eligible_terms')
+
     def json_data(self):
         return {
             'course': self.course.json_data(),
@@ -557,6 +592,41 @@ class EnrollmentHistoryEventManager(models.Manager):
     def by_event_type(self, event_type):
         """Get all history events of a specific type."""
         return self.filter(event_type=event_type)
+
+    def for_student_in_course(self, integration_id, course):
+        """Get all history events for a student in a specific course."""
+        return self.filter(
+            integration_id=integration_id,
+            enrollment__course=course
+        )
+
+    def recent_events(self, days=30):
+        """Get history events from the last N days."""
+        from django.utils import timezone
+        from datetime import timedelta
+        cutoff = timezone.now() - timedelta(days=days)
+        return self.filter(timestamp__gte=cutoff)
+
+    def creations_for_course(self, course):
+        """Get all enrollment creation events for a course."""
+        return self.filter(
+            enrollment__course=course,
+            event_type=EnrollmentHistoryEvent.EVENT_TYPE_CREATED
+        )
+
+    def deletions_for_course(self, course):
+        """Get all enrollment deletion events for a course."""
+        return self.filter(
+            enrollment__course=course,
+            event_type=EnrollmentHistoryEvent.EVENT_TYPE_DELETED
+        )
+
+    def updates_with_term_changes(self):
+        """Get update events where eligible terms actually changed."""
+        return self.filter(
+            event_type=EnrollmentHistoryEvent.EVENT_TYPE_UPDATED,
+            previous_eligible_terms__isnull=False
+        ).exclude(eligible_terms=models.F('previous_eligible_terms'))
 
 
 class EnrollmentHistoryEvent(models.Model):
@@ -620,6 +690,53 @@ class EnrollmentHistoryEvent(models.Model):
             'eligible_terms': self.eligible_terms,
             'previous_eligible_terms': self.previous_eligible_terms,
         }
+
+    def get_terms_added(self):
+        """
+        Get eligible terms that were added in this update event.
+        Returns empty list for non-update events.
+        """
+        if (self.event_type != self.EVENT_TYPE_UPDATED or
+                not self.previous_eligible_terms):
+            return []
+
+        current_terms = set(self.eligible_terms or [])
+        previous_terms = set(self.previous_eligible_terms or [])
+        return list(current_terms - previous_terms)
+
+    def get_terms_removed(self):
+        """
+        Get eligible terms that were removed in this update event.
+        Returns empty list for non-update events.
+        """
+        if (self.event_type != self.EVENT_TYPE_UPDATED or
+                not self.previous_eligible_terms):
+            return []
+
+        current_terms = set(self.eligible_terms or [])
+        previous_terms = set(self.previous_eligible_terms or [])
+        return list(previous_terms - current_terms)
+
+    def is_terms_update(self):
+        """Check if this event represents an eligible terms update."""
+        return (self.event_type == self.EVENT_TYPE_UPDATED and
+                self.previous_eligible_terms is not None)
+
+    def get_event_summary(self):
+        """Get a human-readable summary of this event."""
+        base = f"{self.get_event_type_display()} for {self.integration_id}"
+        if (self.event_type == self.EVENT_TYPE_UPDATED and
+                self.is_terms_update()):
+            added = self.get_terms_added()
+            removed = self.get_terms_removed()
+            details = []
+            if added:
+                details.append(f"added terms: {added}")
+            if removed:
+                details.append(f"removed terms: {removed}")
+            if details:
+                base += f" ({', '.join(details)})"
+        return base
 
     def __str__(self):
         return (f"{self.get_event_type_display()} for {self.integration_id} "
