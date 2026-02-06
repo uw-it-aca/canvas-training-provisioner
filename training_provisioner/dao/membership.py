@@ -236,17 +236,18 @@ def get_students_from_registration(quarter_code) -> list[str]:
 
     query = f"""
         DECLARE @acaQtr INT = {quarter_code};
-        SELECT s.student_no AS StudentNumber
+        SELECT s1.student_no AS StudentNumber
         FROM UWSDBDataStore.sec.registration rc
-        INNER JOIN UWSDBDataStore.sec.student_1 s
-            ON rc.system_key = s.system_key
+        INNER JOIN UWSDBDataStore.sec.student_1 s1
+            ON rc.system_key = s1.system_key
         WHERE ((rc.regis_yr * 10) + rc.regis_qtr) = @acaQtr
-            AND s.student_no > 0
+            AND s1.student_no > 0
             AND rc.enroll_status = 12
             AND rc.regis_class NOT IN (6, 9, 10)
+            AND s1.deceased_dt IS NULL
     """
     df = execute_edw_query(query)
-    return df['StudentNumber'].astype(str).tolist()
+    return df['StudentNumber'].astype(str).str.zfill(7).tolist()
 
 
 def get_students_from_admissions(quarter_code) -> list[str]:
@@ -271,14 +272,15 @@ def get_students_from_admissions(quarter_code) -> list[str]:
             ON s1.system_key = aa.system_key
             AND s1.admitted_for_yr = aa.appl_yr
             AND s1.admitted_for_qtr = aa.appl_qtr
+        WHERE s1.student_no > 0
             AND aa.appl_type != 'N'
             AND aa.appl_status IN (15, 16)
-        WHERE s1.student_no > 0
+            AND s1.deceased_dt IS NULL
             AND (s1.admitted_for_yr * 10 + s1.admitted_for_qtr) = @acaQtr
     """
 
     df = execute_edw_query(query)
-    return df['StudentNumber'].astype(str).tolist()
+    return df['StudentNumber'].astype(str).str.zfill(7).tolist()
 
 
 def _write_debug_files(term_id,
