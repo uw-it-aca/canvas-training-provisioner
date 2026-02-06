@@ -273,7 +273,7 @@ class IntegrationIdStringHandlingTest(TrainingCourseTestCase):
         test_id_int = 9999998
 
         # Create first enrollment with string ID
-        enrollment1 = Enrollment.objects.create(
+        _ = Enrollment.objects.create(
             integration_id=test_id_str,
             course=test_course
         )

@@ -281,7 +281,15 @@ class TitleVIMembershipTest(TrainingCourseTestCase):
     def setUp(self):
         super().setUp()
         self.training_course = TrainingCourse.objects.get(pk=1)
+        # Store original term_id to restore in tearDown
+        self.original_term_id = self.training_course.term_id
         self.training_course.term_id = "AY2025-2026"
+
+    def tearDown(self):
+        """Reset training course state to prevent test interference."""
+        # Reset term_id to original value to prevent test pollution
+        self.training_course.term_id = self.original_term_id
+        super().tearDown()
 
     def test_title_vi_membership_invalid_term_format(self):
         """Test title_vi_membership_candidates with invalid term format."""
@@ -305,6 +313,18 @@ class TitleVIMembershipTest(TrainingCourseTestCase):
         Test title_vi_membership_candidates for AY2025-2026 special case
         (Spring 2026 only).
         """
+        # Ensure clean mock state - reset_mock doesn't clear side_effect
+        mock_quarters.reset_mock()
+        mock_quarter_info.reset_mock()
+        mock_admissions.reset_mock()
+        mock_registration.reset_mock()
+        
+        # Clear side_effect explicitly to prevent test contamination
+        mock_quarters.side_effect = None
+        mock_quarter_info.side_effect = None
+        mock_admissions.side_effect = None
+        mock_registration.side_effect = None
+
         self.training_course.term_id = "AY2025-2026"
 
         # Mock the quarters function to be called with Spring 2026 start
@@ -341,6 +361,18 @@ class TitleVIMembershipTest(TrainingCourseTestCase):
                                            mock_admissions,
                                            mock_registration):
         """Test title_vi_membership_candidates for normal academic year."""
+        # Ensure clean mock state - reset_mock doesn't clear side_effect
+        mock_quarters.reset_mock()
+        mock_quarter_info.reset_mock()
+        mock_admissions.reset_mock()
+        mock_registration.reset_mock()
+        
+        # Clear side_effect explicitly to prevent test contamination
+        mock_quarters.side_effect = None
+        mock_quarter_info.side_effect = None
+        mock_admissions.side_effect = None
+        mock_registration.side_effect = None
+        
         self.training_course.term_id = "AY2026-2027"
 
         # Mock normal AY with multiple quarters
@@ -413,6 +445,18 @@ class TitleVIMembershipTest(TrainingCourseTestCase):
         Test title_vi_membership_candidates with duplicate students across
         quarters.
         """
+        # Ensure clean mock state - reset_mock doesn't clear side_effect
+        mock_quarters.reset_mock()
+        mock_quarter_info.reset_mock()
+        mock_admissions.reset_mock()
+        mock_registration.reset_mock()
+        
+        # Clear side_effect explicitly to prevent test contamination
+        mock_quarters.side_effect = None
+        mock_quarter_info.side_effect = None
+        mock_admissions.side_effect = None
+        mock_registration.side_effect = None
+        
         self.training_course.term_id = "AY2026-2027"
 
         mock_quarters.return_value = ["20271", "20272"]
@@ -436,6 +480,7 @@ class TitleVIMembershipTest(TrainingCourseTestCase):
 
         # Should deduplicate - each student should appear only once
         expected_students = ['1001', '1002', '1003', '1004', '2001', '2002']
+
         self.assertEqual(sorted(result.keys()), sorted(expected_students))
 
         # Verify that duplicate students have terms from multiple sources

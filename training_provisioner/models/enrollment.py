@@ -331,15 +331,15 @@ class EnrollmentManager(models.Manager):
                 integration_id=studentno,
                 course__training_course=training_course)
 
-            # Merge new eligible terms with existing ones
-            enrollment.merge_eligible_terms(eligible_terms)
-
             # Check if this is a reenrollment (previously deleted user)
             if enrollment.deleted_date is not None:
                 # This student has a previously deleted enrollment in this
                 # course. Reactivate it as a reenrollment
                 enrollment.deleted_date = None
                 enrollment.priority = ImportResource.PRIORITY_DEFAULT
+                
+                # Merge new eligible terms with existing ones
+                enrollment.merge_eligible_terms(eligible_terms)
                 enrollment.save()
 
                 # Create history event for reactivation
@@ -357,12 +357,18 @@ class EnrollmentManager(models.Manager):
                 previous_terms = enrollment.eligible_terms.copy() if \
                     enrollment.eligible_terms else []
 
+                # Merge new eligible terms with existing ones
+                enrollment.merge_eligible_terms(eligible_terms)
+
+                # Check if terms changed after merging
+                current_terms = enrollment.eligible_terms or []
+                terms_changed = set(previous_terms) != set(current_terms)
+
                 # Normal case: just save the updated eligible_terms
                 enrollment.save()
 
                 # Create history event if terms changed
-                current_terms = enrollment.eligible_terms or []
-                if set(previous_terms) != set(current_terms):
+                if terms_changed:
                     enrollment.create_history_event(
                         EnrollmentHistoryEvent.EVENT_TYPE_UPDATED,
                         previous_terms=previous_terms

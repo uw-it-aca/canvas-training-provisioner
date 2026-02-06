@@ -15,7 +15,8 @@ class MemberList:
     """
     Class to represent a list of members eligible for a training course.
     """
-    _members = {}
+    def __init__(self):
+        self._members = {}
 
     def add_members(self, members: list[str], qtrcode: str, regtype: str):
         """

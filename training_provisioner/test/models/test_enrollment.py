@@ -183,7 +183,8 @@ class EnrollmentModelTest(TrainingCourseTestCase):
         Section.objects.add_models_for_training_course(self.training_course)
 
         # Create some initial enrollments
-        mock_membership.return_value = ['5432199', '5432200']
+        mock_membership.return_value = {'5432199': ['20254R'],
+                                        '5432200': ['20254A', '20254R']}
         Enrollment.objects.add_models_for_training_course(self.training_course)
 
         # Verify we have existing enrollments
@@ -192,7 +193,7 @@ class EnrollmentModelTest(TrainingCourseTestCase):
         self.assertGreater(existing_count, 0)
 
         # Now simulate membership retrieval failure (empty list)
-        mock_membership.return_value = []
+        mock_membership.return_value = {}
 
         # This should raise a DataAccessException
         with self.assertRaises(DataAccessException) as context:
