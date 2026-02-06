@@ -98,6 +98,12 @@ class EnrollmentManager(models.Manager):
                 enrollment.deleted_date = now
                 enrollment.priority = ImportResource.PRIORITY_DEFAULT
                 enrollment.save()
+
+                # Create history event for deletion
+                enrollment.create_history_event(
+                    EnrollmentHistoryEvent.EVENT_TYPE_DELETED
+                )
+
                 enrollments.append(enrollment)
                 enrollments_dropped += 1
 
@@ -335,14 +341,32 @@ class EnrollmentManager(models.Manager):
                 enrollment.deleted_date = None
                 enrollment.priority = ImportResource.PRIORITY_DEFAULT
                 enrollment.save()
+
+                # Create history event for reactivation
+                enrollment.create_history_event(
+                    EnrollmentHistoryEvent.EVENT_TYPE_REACTIVATED
+                )
+
                 self._trigger_course_import(enrollment.course)
                 section_or_course_id = enrollment.section.section_id if \
                     enrollment.section else enrollment.course.course_id
                 logger.info(f"reactivate enrollment {studentno} in "
                             f"{section_or_course_id}")
             else:
+                # Check if eligible_terms actually changed
+                previous_terms = enrollment.eligible_terms.copy() if \
+                    enrollment.eligible_terms else []
+
                 # Normal case: just save the updated eligible_terms
                 enrollment.save()
+
+                # Create history event if terms changed
+                current_terms = enrollment.eligible_terms or []
+                if set(previous_terms) != set(current_terms):
+                    enrollment.create_history_event(
+                        EnrollmentHistoryEvent.EVENT_TYPE_UPDATED,
+                        previous_terms=previous_terms
+                    )
 
             if enrollment.course != course:
                 raise EnrollmentCourseMismatch(
@@ -356,6 +380,11 @@ class EnrollmentManager(models.Manager):
                 enrollment.deleted_date = localtime()
                 enrollment.priority = ImportResource.PRIORITY_DEFAULT
                 enrollment.save()
+
+                # Create history event for deletion due to section change
+                enrollment.create_history_event(
+                    EnrollmentHistoryEvent.EVENT_TYPE_DELETED
+                )
 
                 # reactivate prior enrollment or create new one
                 enrollment = Enrollment.objects.get(
@@ -389,6 +418,12 @@ class EnrollmentManager(models.Manager):
                 course=course,
                 section=section,
                 eligible_terms=eligible_terms)
+
+            # Create history event for new enrollment
+            enrollment.create_history_event(
+                EnrollmentHistoryEvent.EVENT_TYPE_CREATED
+            )
+
             self._trigger_course_import(course)
             logger.info(f"create enrollment {studentno} in "
                         f"{section_id if section_id else course_id}")
@@ -466,6 +501,27 @@ class Enrollment(ImportResource):
         new_terms_set = set(new_terms or [])
         self.eligible_terms = list(existing_terms.union(new_terms_set))
 
+    def create_history_event(self, event_type, previous_terms=None):
+        """
+        Create a history event for this enrollment with current state.
+
+        Args:
+            event_type (str): Type of event (created, updated, deleted,
+                              reactivated)
+            previous_terms (list): Previous eligible terms for update events
+        """
+        return EnrollmentHistoryEvent.objects.create(
+            enrollment=self,
+            event_type=event_type,
+            integration_id=self.integration_id,
+            course_id=self.course.course_id,
+            section_id=self.section.section_id if self.section else None,
+            eligible_terms=(self.eligible_terms.copy() if
+                            self.eligible_terms else []),
+            previous_eligible_terms=(previous_terms.copy() if
+                                     previous_terms else None)
+        )
+
     def json_data(self):
         return {
             'course': self.course.json_data(),
@@ -487,3 +543,93 @@ class Enrollment(ImportResource):
     class Meta:
         db_table = 'enrollment'
         unique_together = ('integration_id', 'course', 'section')
+
+
+class EnrollmentHistoryEventManager(models.Manager):
+    def for_student(self, integration_id):
+        """Get all history events for a specific student."""
+        return self.filter(integration_id=integration_id)
+
+    def for_course(self, course):
+        """Get all history events for a specific course."""
+        return self.filter(enrollment__course=course)
+
+    def by_event_type(self, event_type):
+        """Get all history events of a specific type."""
+        return self.filter(event_type=event_type)
+
+
+class EnrollmentHistoryEvent(models.Model):
+    """
+    Represents an immutable record of an enrollment event for auditing and
+    historical reference. Each event captures the state of an enrollment at
+    the time the event occurred.
+    """
+
+    EVENT_TYPE_CREATED = 'created'
+    EVENT_TYPE_UPDATED = 'updated'
+    EVENT_TYPE_DELETED = 'deleted'
+    EVENT_TYPE_REACTIVATED = 'reactivated'
+
+    EVENT_TYPE_CHOICES = (
+        (EVENT_TYPE_CREATED, 'Enrollment Created'),
+        (EVENT_TYPE_UPDATED, 'Enrollment Updated'),
+        (EVENT_TYPE_DELETED, 'Enrollment Deleted'),
+        (EVENT_TYPE_REACTIVATED, 'Enrollment Reactivated'),
+    )
+
+    # Relationship
+    enrollment = models.ForeignKey(
+        Enrollment,
+        on_delete=models.CASCADE,
+        related_name='history_events'
+    )
+
+    # Event metadata
+    event_type = models.CharField(
+        max_length=20,
+        choices=EVENT_TYPE_CHOICES,
+        db_index=True
+    )
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    # Enrollment state snapshot at time of event
+    integration_id = models.CharField(max_length=8, db_index=True)
+    course_id = models.CharField(max_length=100)
+    section_id = models.CharField(max_length=100, null=True, blank=True)
+    eligible_terms = models.JSONField(default=list, blank=True)
+
+    # Change context for updates
+    previous_eligible_terms = models.JSONField(
+        default=list,
+        blank=True,
+        null=True,
+        help_text="Previous eligible terms before update (for update events)"
+    )
+
+    objects = EnrollmentHistoryEventManager()
+
+    def json_data(self):
+        return {
+            'enrollment_id': self.enrollment.pk,
+            'event_type': self.event_type,
+            'timestamp': localtime(self.timestamp).isoformat(),
+            'integration_id': self.integration_id,
+            'course_id': self.course_id,
+            'section_id': self.section_id,
+            'eligible_terms': self.eligible_terms,
+            'previous_eligible_terms': self.previous_eligible_terms,
+        }
+
+    def __str__(self):
+        return (f"{self.get_event_type_display()} for {self.integration_id} "
+                f"in {self.course_id} at {self.timestamp}")
+
+    class Meta:
+        db_table = 'enrollment_history_event'
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['integration_id', 'timestamp']),
+            models.Index(fields=['event_type', 'timestamp']),
+            models.Index(fields=['course_id', 'timestamp']),
+        ]
