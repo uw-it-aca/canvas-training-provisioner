@@ -318,7 +318,7 @@ class TitleVIMembershipTest(TrainingCourseTestCase):
         mock_quarter_info.reset_mock()
         mock_admissions.reset_mock()
         mock_registration.reset_mock()
-        
+
         # Clear side_effect explicitly to prevent test contamination
         mock_quarters.side_effect = None
         mock_quarter_info.side_effect = None
@@ -366,13 +366,13 @@ class TitleVIMembershipTest(TrainingCourseTestCase):
         mock_quarter_info.reset_mock()
         mock_admissions.reset_mock()
         mock_registration.reset_mock()
-        
+
         # Clear side_effect explicitly to prevent test contamination
         mock_quarters.side_effect = None
         mock_quarter_info.side_effect = None
         mock_admissions.side_effect = None
         mock_registration.side_effect = None
-        
+
         self.training_course.term_id = "AY2026-2027"
 
         # Mock normal AY with multiple quarters
@@ -450,13 +450,13 @@ class TitleVIMembershipTest(TrainingCourseTestCase):
         mock_quarter_info.reset_mock()
         mock_admissions.reset_mock()
         mock_registration.reset_mock()
-        
+
         # Clear side_effect explicitly to prevent test contamination
         mock_quarters.side_effect = None
         mock_quarter_info.side_effect = None
         mock_admissions.side_effect = None
         mock_registration.side_effect = None
-        
+
         self.training_course.term_id = "AY2026-2027"
 
         mock_quarters.return_value = ["20271", "20272"]

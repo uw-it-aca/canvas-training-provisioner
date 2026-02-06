@@ -337,7 +337,7 @@ class EnrollmentManager(models.Manager):
                 # course. Reactivate it as a reenrollment
                 enrollment.deleted_date = None
                 enrollment.priority = ImportResource.PRIORITY_DEFAULT
-                
+
                 # Merge new eligible terms with existing ones
                 enrollment.merge_eligible_terms(eligible_terms)
                 enrollment.save()
