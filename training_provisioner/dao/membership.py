@@ -61,6 +61,8 @@ def test_membership(training_course):
     try:
         with open(mock_file_path("membership.json")) as f:
             member_list = json.load(f)
+            if type(member_list) is dict:
+                return member_list
             # Convert list to dictionary format with mock terms
             return {member: ["20254R", "20261R"] for member in member_list}
     except Exception as e:
@@ -151,7 +153,7 @@ def title_vi_membership_candidates(training_course) -> dict[str, list[str]]:
 
     # Write debug files for auditing purposes
     _write_debug_files(training_course.term_id,
-                       set(eligible_members_with_terms._members.keys()),
+                       set(eligible_members_with_terms.to_dict().keys()),
                        quarter_stats, True)
 
     return eligible_members_with_terms.to_dict()

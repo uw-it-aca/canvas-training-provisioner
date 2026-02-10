@@ -146,9 +146,21 @@ class TrainingCourse(models.Model):
         # Call the appropriate membership function from dao.membership
         # based on membership choice type
         # Warn if empty membership list is returned
+        membership_functions = {
+            'test_membership': test_membership,
+            'title_vi_membership_candidates': title_vi_membership_candidates,
+            'title_vi_booster_membership_candidates':
+                title_vi_booster_membership_candidates,
+        }
+
+        function_name = self.get_membership_type_display()
+        membership_function = membership_functions.get(function_name)
+
+        if not membership_function:
+            raise ValueError(f"Unknown membership type: {function_name}")
+
         try:
-            membership_dict = eval(
-                f"{self.get_membership_type_display()}(self)")
+            membership_dict = membership_function(self)
             if not membership_dict:
                 logger.warning(f"Empty membership result for training course "
                                f"{self.course_name} ("

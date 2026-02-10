@@ -364,11 +364,9 @@ class EnrollmentManager(models.Manager):
                 current_terms = enrollment.eligible_terms or []
                 terms_changed = set(previous_terms) != set(current_terms)
 
-                # Normal case: just save the updated eligible_terms
-                enrollment.save()
-
-                # Create history event if terms changed
+                # Only save and create history if terms actually changed
                 if terms_changed:
+                    enrollment.save()
                     enrollment.create_history_event(
                         EnrollmentHistoryEvent.EVENT_TYPE_UPDATED,
                         previous_terms=previous_terms
@@ -482,7 +480,7 @@ class Enrollment(ImportResource):
     section = models.ForeignKey(Section, null=True, on_delete=models.CASCADE)
     integration_id = models.CharField(max_length=8, db_index=True)
     eligible_terms = models.JSONField(default=list, blank=True)
-    created_date = models.DateTimeField(auto_now=True)
+    created_date = models.DateTimeField(auto_now_add=True)
     provisioned_date = models.DateTimeField(null=True)
     deleted_date = models.DateTimeField(null=True)
     priority = models.SmallIntegerField(
@@ -505,7 +503,7 @@ class Enrollment(ImportResource):
         """
         existing_terms = set(self.eligible_terms or [])
         new_terms_set = set(new_terms or [])
-        self.eligible_terms = list(existing_terms.union(new_terms_set))
+        self.eligible_terms = sorted(existing_terms.union(new_terms_set))
 
     def create_history_event(self, event_type, previous_terms=None):
         """
