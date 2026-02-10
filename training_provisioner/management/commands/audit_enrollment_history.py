@@ -100,7 +100,7 @@ class Command(BaseCommand):
         if enrollments_without_history:
             self.stdout.write(
                 self.style.WARNING(
-                    f"⚠️  {len(enrollments_without_history)} enrollments "
+                    f"{len(enrollments_without_history)} enrollments "
                     f"have no history events"))
             if verbose:
                 for enrollment in enrollments_without_history[:10]:
@@ -116,7 +116,7 @@ class Command(BaseCommand):
         if enrollments_with_missing_created:
             self.stdout.write(
                 self.style.WARNING(
-                    f"⚠️  {len(enrollments_with_missing_created)} enrollments "
+                    f"{len(enrollments_with_missing_created)} enrollments "
                     f"missing CREATED event"))
             if verbose:
                 for enrollment in enrollments_with_missing_created[:10]:
@@ -129,7 +129,7 @@ class Command(BaseCommand):
         if enrollments_with_inconsistent_state:
             self.stdout.write(
                 self.style.WARNING(
-                    f"⚠️  {len(enrollments_with_inconsistent_state)} "
+                    f"{len(enrollments_with_inconsistent_state)} "
                     f"enrollments have inconsistent deletion state"))
             if verbose:
                 for enrollment in enrollments_with_inconsistent_state[:10]:
@@ -157,11 +157,11 @@ class Command(BaseCommand):
 
         if total_issues == 0:
             self.stdout.write(
-                self.style.SUCCESS(f"\n✅ Enrollment history audit passed! "
+                self.style.SUCCESS(f"Enrollment history audit passed! "
                                    f"No issues found."))
         else:
             self.stdout.write(
-                self.style.WARNING(f"\n⚠️  Found {total_issues} issues that "
+                self.style.WARNING(f"Found {total_issues} issues that "
                                    f"may need attention."))
             self.stdout.write(
                 "Consider running 'backfill_enrollment_history' to fix "

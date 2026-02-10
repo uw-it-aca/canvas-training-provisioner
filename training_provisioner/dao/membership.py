@@ -118,8 +118,12 @@ def title_vi_membership_candidates(training_course) -> dict[str, list[str]]:
     """
     Iterate over quarters in the academic year and gather students from EDW
     registration and optionally admissions tables (depending on census day).
+
     We will track the quarters in which each student is found to be eligible
     and store that in the Enrollment for future reporting and forensics.
+
+    We will append an 'R' or 'A' to the quarter code to indicate whether the
+    student was found in registration or admissions tables, respectively.
     """
     for quartercode in quarters_in_ay:
         quarter_info = get_info_for_quarter(quartercode)
