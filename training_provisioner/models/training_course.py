@@ -142,30 +142,49 @@ class TrainingCourse(models.Model):
         ordinal = index + 1
         return f"{self.course_id_prefix}{ordinal:03d}"
 
-    def get_course_membership(self) -> list[str]:
+    def get_course_membership(self) -> dict[str, list[str]]:
         # Call the appropriate membership function from dao.membership
         # based on membership choice type
         # Warn if empty membership list is returned
+        membership_functions = {
+            'test_membership': test_membership,
+            'title_vi_membership_candidates': title_vi_membership_candidates,
+            'title_vi_booster_membership_candidates':
+                title_vi_booster_membership_candidates,
+        }
+
+        function_name = self.get_membership_type_display()
+        membership_function = membership_functions.get(function_name)
+
+        if not membership_function:
+            raise ValueError(f"Unknown membership type: {function_name}")
+
         try:
-            membership_list = eval(
-                f"{self.get_membership_type_display()}(self)")
-            if not membership_list:
+            membership_dict = membership_function(self)
+            if not membership_dict:
                 logger.warning(f"Empty membership result for training course "
                                f"{self.course_name} ("
                                f"{self.blueprint_course_id} - {self.term_id})."
                                " This may indicate a failure in membership "
                                "retrieval.")
-            return membership_list
+            return membership_dict
         except Exception as ex:
-            raise ValueError(f"Invalid membership: {ex}")
+            raise ValueError(f"Invalid membership: {ex}") from ex
 
     def get_course_id_for_member(self, integration_id):
+        """
+        This function does not look up the student's membership in a given
+        course. Instead, it uses a hash of the student's integration_id to
+        assign them to one of the provisioned courses for this training course
+        (based on self.course_count). This ensures that students are evenly
+        distributed across courses in a deterministic way.
+        """
         return self.course_id(self._course_index_for_member(integration_id))
 
     def _course_index_for_member(self, integration_id):
         """
         Which of the self.course_count courses the
-        member with integration_id is enrolled
+        member with integration_id should be enrolled
         """
         return self._hash(integration_id) % self.course_count
 

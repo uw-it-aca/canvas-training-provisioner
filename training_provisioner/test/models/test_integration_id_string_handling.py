@@ -256,7 +256,8 @@ class IntegrationIdStringHandlingTest(TrainingCourseTestCase):
         manager = Enrollment.objects
 
         # Test with string candidates (correct)
-        string_candidates = ["5432101", "5432102"]
+        string_candidates = {"5432101": ["20254R", "20261A"],
+                             "5432102": ["20254R", "20261A"]}
         filtered = manager._filter_candidates_by_course_type(
             string_candidates, self.training_course)
 
@@ -272,7 +273,7 @@ class IntegrationIdStringHandlingTest(TrainingCourseTestCase):
         test_id_int = 9999998
 
         # Create first enrollment with string ID
-        enrollment1 = Enrollment.objects.create(
+        _ = Enrollment.objects.create(
             integration_id=test_id_str,
             course=test_course
         )

@@ -114,14 +114,21 @@ class Course(ImportResource):
             self.training_course.section_count)]
 
     def get_section_id_for_member(self, integration_id):
+        """
+        This function does not look up the student's membership in a given
+        section. Instead, it uses a hash of the student's integration_id to
+        assign them to one of the provisioned sections for this course
+        (based on self.training_course.section_count) or None. This ensures
+        students are evenly distributed across sections in a deterministic way.
+        """
         section_index = self._section_index_for_member(integration_id)
         return self._section_id(section_index) if (
             section_index is not None) else None
 
     def _section_index_for_member(self, integration_id):
         """
-        Which of the self.section_count courses the
-        member with integration_id is enrolled
+        Which of the self.section_count sections the
+        member with integration_id should be enrolled
         """
         return (self._hash(integration_id) %
                 self.training_course.section_count) if (
