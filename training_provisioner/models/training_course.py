@@ -169,7 +169,7 @@ class TrainingCourse(models.Model):
                                "retrieval.")
             return membership_dict
         except Exception as ex:
-            raise ValueError(f"Invalid membership: {ex}")
+            raise ValueError(f"Invalid membership: {ex}") from ex
 
     def get_course_id_for_member(self, integration_id):
         """
