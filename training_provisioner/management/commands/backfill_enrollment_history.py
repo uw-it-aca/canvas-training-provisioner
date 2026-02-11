@@ -87,8 +87,12 @@ class Command(BaseCommand):
         for enrollment in enrollments_without_history:
             try:
                 # Create a CREATED event with the enrollment's current state
-                # Use created_date as timestamp if available, otherwise now
-                timestamp = enrollment.created_date or timezone.now()
+                
+                # The model has auto_now_add for created_date, so it will use
+                # the current time when the event is created. If we wanted
+                # to override that, we would need to change the model and use
+                # something like:
+                # timestamp = enrollment.created_date
 
                 EnrollmentHistoryEvent.objects.create(
                     enrollment=enrollment,
@@ -99,7 +103,6 @@ class Command(BaseCommand):
                                 if enrollment.section else None),
                     eligible_terms=(enrollment.eligible_terms.copy()
                                     if enrollment.eligible_terms else []),
-                    timestamp=timestamp
                 )
                 created_count += 1
 

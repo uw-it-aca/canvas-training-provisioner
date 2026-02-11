@@ -61,7 +61,7 @@ def test_membership(training_course):
     try:
         with open(mock_file_path("membership.json")) as f:
             member_list = json.load(f)
-            if type(member_list) is dict:
+            if isinstance(member_list, dict):
                 return member_list
             # Convert list to dictionary format with mock terms
             return {member: ["20254R", "20261R"] for member in member_list}
@@ -117,16 +117,17 @@ def title_vi_membership_candidates(training_course) -> dict[str, list[str]]:
     quarters_in_ay = get_quarters_in_ay(training_course_academic_year,
                                         start_quarter)
 
-    """
-    Iterate over quarters in the academic year and gather students from EDW
-    registration and optionally admissions tables (depending on census day).
+    # --------------------------
+    # Iterate over quarters in the academic year and gather students from EDW
+    # registration and optionally admissions tables (depending on census day).
 
-    We will track the quarters in which each student is found to be eligible
-    and store that in the Enrollment for future reporting and forensics.
+    # We will track the quarters in which each student is found to be eligible
+    # and store that in the Enrollment for future reporting and forensics.
 
-    We will append an 'R' or 'A' to the quarter code to indicate whether the
-    student was found in registration or admissions tables, respectively.
-    """
+    # We will append an 'R' or 'A' to the quarter code to indicate whether the
+    # student was found in registration or admissions tables, respectively.
+    # ---------------------------
+
     for quartercode in quarters_in_ay:
         quarter_info = get_info_for_quarter(quartercode)
         registration_students = get_students_from_registration(quartercode)

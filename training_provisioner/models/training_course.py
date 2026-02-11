@@ -172,12 +172,19 @@ class TrainingCourse(models.Model):
             raise ValueError(f"Invalid membership: {ex}")
 
     def get_course_id_for_member(self, integration_id):
+        """
+        This function does not look up the student's membership in a given
+        course. Instead, it uses a hash of the student's integration_id to
+        assign them to one of the provisioned courses for this training course
+        (based on self.course_count). This ensures that students are evenly
+        distributed across courses in a deterministic way.
+        """
         return self.course_id(self._course_index_for_member(integration_id))
 
     def _course_index_for_member(self, integration_id):
         """
         Which of the self.course_count courses the
-        member with integration_id is enrolled
+        member with integration_id should be enrolled
         """
         return self._hash(integration_id) % self.course_count
 

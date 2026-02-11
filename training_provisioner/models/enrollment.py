@@ -93,7 +93,7 @@ class EnrollmentManager(models.Manager):
                     integration_id=dropped_studentno,
                     course__training_course=training_course)
                 if enrollment.deleted_date is not None:
-                    # already marked as deleted
+                    # already marked as deleted - skip further processing
                     continue
                 enrollment.deleted_date = now
                 enrollment.priority = ImportResource.PRIORITY_DEFAULT
@@ -320,18 +320,24 @@ class EnrollmentManager(models.Manager):
             eligible_terms = []
 
         try:
+            # Get the course this student should be enrolled in
             course_id = training_course.get_course_id_for_member(studentno)
             course = Course.objects.get(course_id=course_id)
+
+            # Get the section this student should be enrolled in (if any)
             section_id = course.get_section_id_for_member(studentno)
             section = (Section.objects.get(section_id=section_id)
                        if section_id is not None else None)
             # priority = Enrollment.PRIORITY_DEFAULT
 
+            # Attempt to get an existing enrollment for this student in this
+            # course. If none exists, we will create a new one in the
+            # except block below. If one does exist, we will update it as
+            # needed.
             enrollment = Enrollment.objects.get(
                 integration_id=studentno,
                 course__training_course=training_course)
 
-            # Check if this is a reenrollment (previously deleted user)
             if enrollment.deleted_date is not None:
                 # This student has a previously deleted enrollment in this
                 # course. Reactivate it as a reenrollment
@@ -398,6 +404,12 @@ class EnrollmentManager(models.Manager):
                 # Merge eligible terms with existing enrollment
                 enrollment.merge_eligible_terms(eligible_terms)
                 enrollment.save()
+
+                # Log an event showing that an enrollment was created in the
+                # new section.
+                enrollment.create_history_event(
+                    EnrollmentHistoryEvent.EVENT_TYPE_MOVED
+                )
 
                 logger.info(
                     f"Enrollment for {studentno} in "
@@ -643,12 +655,14 @@ class EnrollmentHistoryEvent(models.Model):
     EVENT_TYPE_CREATED = 'created'
     EVENT_TYPE_UPDATED = 'updated'
     EVENT_TYPE_DELETED = 'deleted'
+    EVENT_TYPE_MOVED = 'moved'
     EVENT_TYPE_REACTIVATED = 'reactivated'
 
     EVENT_TYPE_CHOICES = (
         (EVENT_TYPE_CREATED, 'Enrollment Created'),
         (EVENT_TYPE_UPDATED, 'Enrollment Updated'),
         (EVENT_TYPE_DELETED, 'Enrollment Deleted'),
+        (EVENT_TYPE_MOVED, 'Enrollment Moved'),
         (EVENT_TYPE_REACTIVATED, 'Enrollment Reactivated'),
     )
 
@@ -706,7 +720,7 @@ class EnrollmentHistoryEvent(models.Model):
 
         current_terms = set(self.eligible_terms or [])
         previous_terms = set(self.previous_eligible_terms or [])
-        return list(current_terms - previous_terms)
+        return sorted(current_terms - previous_terms)
 
     def get_terms_removed(self):
         """
@@ -719,7 +733,7 @@ class EnrollmentHistoryEvent(models.Model):
 
         current_terms = set(self.eligible_terms or [])
         previous_terms = set(self.previous_eligible_terms or [])
-        return list(previous_terms - current_terms)
+        return sorted(previous_terms - current_terms)
 
     def is_terms_update(self):
         """Check if this event represents an eligible terms update."""
