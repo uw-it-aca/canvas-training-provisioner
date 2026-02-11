@@ -87,7 +87,7 @@ class Command(BaseCommand):
         for enrollment in enrollments_without_history:
             try:
                 # Create a CREATED event with the enrollment's current state
-                
+
                 # The model has auto_now_add for created_date, so it will use
                 # the current time when the event is created. If we wanted
                 # to override that, we would need to change the model and use
