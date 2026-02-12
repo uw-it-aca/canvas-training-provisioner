@@ -74,7 +74,8 @@ def test_membership(training_course):
 def title_vi_membership_candidates(training_course) -> dict[str, list[str]]:
     """
     Query SDB for appropriate list of students for the supplied Title VI
-    training course.
+    training course. Student numbers will be returned as 7-digit
+    left-zero-padded strings.
 
     This query will return a dictionary mapping eligible students to the terms
     in which they were found eligible, but the business logic for determining
@@ -291,7 +292,7 @@ def get_students_from_registration(quarter_code) -> list[str]:
     Args:
         quarter_code (str|int): quarter code like "20254"
     Returns:
-        list: student_numbers of registered students
+        list: 7 digit (zero-padded) student_numbers of registered students
 
     """
     if not re.match(r"^\d{5}$", str(quarter_code)):
@@ -322,7 +323,7 @@ def get_students_from_admissions(quarter_code) -> list[str]:
         quarter_code (str|int): quarter code like "20254"
 
     Returns:
-        list: student_numbers of admitted students
+        list: 7 digit (zero-padded) student_numbers of admitted students
     """
     if not re.match(r"^\d{5}$", str(quarter_code)):
         raise ValueError(f"Invalid quarter_code format: {quarter_code}")

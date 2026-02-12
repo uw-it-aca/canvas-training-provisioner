@@ -45,4 +45,5 @@ class TrainingCourseTestCase(TestCase):
             '5432108': 5,
             '5432109': 6,
             '5432110': 7,
+            '0123456': 1
         }[member]
