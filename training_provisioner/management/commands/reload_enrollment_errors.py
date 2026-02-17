@@ -23,8 +23,10 @@ class Command(BaseCommand):
             help='Canvas SIS Import ID to process.  Default is most recent.')
 
     def handle(self, *args, **options):
-        latest_import = options.get(
-            'import_id', self.get_most_recent_import())
+        import_id = options.get('import_id')
+        latest_import = self.get_import_by_id(import_id) if (
+            import_id) else self.get_most_recent_import()
+
         if (latest_import
                 and latest_import.progress == 100
                 and latest_import.workflow_state == 'imported_with_messages'):
@@ -90,3 +92,10 @@ class Command(BaseCommand):
                 most_recent = imp
 
         return most_recent
+
+    def get_import_by_id(self, import_id):
+        for imp in get_sis_imports():
+            if import_id == imp.import_id:
+                return imp
+
+        return None
