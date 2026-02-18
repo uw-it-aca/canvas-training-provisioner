@@ -1,13 +1,13 @@
-# Copyright 2025 UW-IT, University of Washington
+# Copyright 2026 UW-IT, University of Washington
 # SPDX-License-Identifier: Apache-2.0
 
 from training_provisioner.test import TrainingCourseTestCase
-from training_provisioner.models import ImportResource
 from training_provisioner.models.training_course import TrainingCourse
 from training_provisioner.models.course import Course
 from training_provisioner.models.section import Section
 from training_provisioner.models.enrollment import Enrollment
-from training_provisioner.exceptions import EnrollmentCourseMismatch
+from training_provisioner.exceptions import (EnrollmentCourseMismatch,
+                                             DataAccessException)
 from mock import patch
 
 
@@ -19,17 +19,19 @@ class EnrollmentModelTest(TrainingCourseTestCase):
         initialize db for mock membership
         """
         mock_membership.return_value = self.get_membership()
-        self.training_course = TrainingCourse.objects.active_courses()[0]
+        self.training_course = TrainingCourse.objects.get(pk=1)
+
         Course.objects.add_models_for_training_course(self.training_course)
         Section.objects.add_models_for_training_course(self.training_course)
         Enrollment.objects.add_models_for_training_course(self.training_course)
 
     def test_enrollment_model(self):
+        membership = self.get_membership()
         self.assertTrue(
             Enrollment.objects.all().count(),
-            len(self.get_membership()))
+            len(membership))
 
-        for i, member in enumerate(self.get_membership()):
+        for i, member in enumerate(membership.keys()):
             enrollment = Enrollment.objects.get(integration_id=member)
             self.assertEqual(
                 enrollment.course.course_id,
@@ -58,7 +60,8 @@ class EnrollmentModelTest(TrainingCourseTestCase):
         Enrollment.objects.update(priority=Enrollment.PRIORITY_NONE)
 
         student_number = '5432123'
-        mock_membership.return_value = self.get_membership() + [student_number]
+        mock_membership.return_value = dict(self.get_membership(),
+                                            **{student_number: ["20262R"]})
 
         Enrollment.objects.add_models_for_training_course(self.training_course)
 
@@ -80,10 +83,13 @@ class EnrollmentModelTest(TrainingCourseTestCase):
         Enrollment.objects.update(priority=Enrollment.PRIORITY_NONE)
 
         membership = self.get_membership()
-        student_number = membership[2]
-        del membership[2]
+        membership_keys = list(membership.keys())
+        student_number = membership_keys[2]
+        # Create new membership without one student
+        modified_membership = {k: v for i, (k, v) in enumerate(
+            membership.items()) if i != 2}
 
-        mock_membership.return_value = membership
+        mock_membership.return_value = modified_membership
 
         Enrollment.objects.add_models_for_training_course(self.training_course)
 
@@ -96,16 +102,105 @@ class EnrollmentModelTest(TrainingCourseTestCase):
         self.assertEqual(enrollment.integration_id, student_number)
         self.assertFalse(enrollment.is_active)
 
-    def test_enrollment_change_error(self):
+    def test_enrollment_course_change(self):
         integration_id = '5432101'
 
         enrollment = Enrollment.objects.get(
             integration_id=integration_id)
-        enrollment_six = Enrollment.objects.get(pk=6)
 
-        enrollment.course = enrollment_six.course
+        # course that _add_enrollment will assign to enrollment
+        # new_course = enrollment.course
+
+        # change enrollment to "old" course
+        enrollment_six = Enrollment.objects.get(pk=6)
+        old_course = enrollment_six.course
+        enrollment.course = old_course
         enrollment.save()
 
         with self.assertRaises(EnrollmentCourseMismatch):
             Enrollment.objects._add_enrollment(
                 integration_id, self.training_course)
+
+    def test_enrollment_section_change(self):
+        training_course = TrainingCourse.objects.get(pk=2)
+
+        # bump term for booster course enrollments
+        training_course.term_id = 'AY2026-2027'
+        Course.objects.add_models_for_training_course(training_course)
+        Section.objects.add_models_for_training_course(training_course)
+        Enrollment.objects.add_models_for_training_course(training_course)
+
+        integration_id = '5432101'
+
+        enrollment = Enrollment.objects.get(
+            course__training_course=training_course,
+            integration_id=integration_id)
+
+        # section that _add_enrollment will assign to enrollment
+        new_section = enrollment.section
+
+        # change enrollment to "old" section
+        old_section = None
+        for section_id in enrollment.course.section_import_ids:
+            if section_id != new_section.section_id:
+                old_section = Section.objects.get(section_id=section_id)
+                enrollment.section = old_section
+                enrollment.save()
+                break
+
+        if not old_section:
+            self.skipTest("no alternate section found for course "
+                          f" {enrollment.course.course_id}")
+
+        Enrollment.objects._add_enrollment(integration_id, training_course)
+
+        enrollments = Enrollment.objects.filter(
+            course__training_course=training_course,
+            integration_id=integration_id)
+
+        self.assertEqual(enrollments.count(), 2)
+        self.assertTrue(enrollments[0].priority > Enrollment.PRIORITY_NONE)
+        self.assertTrue(enrollments[1].priority > Enrollment.PRIORITY_NONE)
+
+        self.assertIsNotNone(
+            enrollments[0].deleted_date if (
+                enrollments[0].section == old_section) else
+            enrollments[1].deleted_date)
+        self.assertIsNone(
+            enrollments[0].deleted_date if (
+                enrollments[0].section == new_section) else
+            enrollments[1].deleted_date)
+
+    @patch('training_provisioner.models.'
+           'training_course.TrainingCourse.get_course_membership')
+    def test_circuit_breaker_exception_on_empty_membership(self,
+                                                           mock_membership):
+        """Test that DataAccessException is raised when membership retrieval
+        returns empty list but existing enrollments are present."""
+
+        # First create some enrollments to establish existing state
+        Course.objects.add_models_for_training_course(self.training_course)
+        Section.objects.add_models_for_training_course(self.training_course)
+
+        # Create some initial enrollments
+        mock_membership.return_value = {'5432199': ['20254R'],
+                                        '5432200': ['20254A', '20254R']}
+        Enrollment.objects.add_models_for_training_course(self.training_course)
+
+        # Verify we have existing enrollments
+        existing_count = Enrollment.objects.filter(
+            course__training_course=self.training_course).count()
+        self.assertGreater(existing_count, 0)
+
+        # Now simulate membership retrieval failure (empty list)
+        mock_membership.return_value = {}
+
+        # This should raise a DataAccessException
+        with self.assertRaises(DataAccessException) as context:
+            Enrollment.objects.add_models_for_training_course(
+                self.training_course)
+
+        # Verify the exception message contains expected information
+        self.assertIn("No membership candidates found", str(context.exception))
+        self.assertIn("existing enrollments present", str(context.exception))
+        self.assertIn("membership retrieval failure", str(context.exception))

@@ -1,4 +1,4 @@
-# Copyright 2025 UW-IT, University of Washington
+# Copyright 2026 UW-IT, University of Washington
 # SPDX-License-Identifier: Apache-2.0
 
 from django.db import models
@@ -8,48 +8,104 @@ from training_provisioner.models.course import Course
 from training_provisioner.models.section import Section
 from training_provisioner.models.training_course import TrainingCourse
 from training_provisioner.exceptions import (
-    MissingCourseException, MissingSectionException, EnrollmentCourseMismatch)
+    MissingCourseException, MissingSectionException, EnrollmentCourseMismatch,
+    DataAccessException)
 from django.utils.timezone import localtime
+import re
 import logging
 import json
+import time
 
 
 logger = logging.getLogger(__name__)
 
 
 class EnrollmentManager(models.Manager):
-    def add_models_for_training_course(self, training_course):
+    def add_models_for_training_course(self, training_course: TrainingCourse):
+        # Entrypoint for model loading for enrollments
+        # Studentno will be integration_id in Canvas import.
+        start_time = time.time()
+
         enrollments = []
+        # Get student numbers for all currently enrolled students
+        # in this course (incl inactive) from existing enrollments
         enrolled_studentnos = set(self.filter(
             course__training_course=training_course
         ).values_list('integration_id', flat=True))
 
-        membership_candidates = training_course.get_course_membership()
+        existing_enrollment_count = len(enrolled_studentnos)
 
-        # Filter candidates based on course type and previous enrollments
+        # Get list of all currently eligible students from EDW
+        # returns a dictionary mapping studentno to list of eligible terms
+        # eg: {'12345678': ['20261A', '20261R'], '23456789': ['20254R']}
+        membership_candidates = training_course.get_course_membership()
+        candidate_count = len(membership_candidates)
+
+        # Circuit breaker: if no candidates are found and there are existing
+        # enrollments, it may indicate a failure in membership retrieval from
+        # EDW. Raise an exception to prevent accidental deletion of enrollments
+        if candidate_count == 0 and existing_enrollment_count > 0:
+            error_msg = (f"No membership candidates found for "
+                         f"{training_course.course_name} but "
+                         f"{existing_enrollment_count} existing enrollments "
+                         f"present. This may indicate a membership retrieval "
+                         f"failure from EDW.")
+            logger.error(error_msg)
+            raise DataAccessException(error_msg)
+
+        # Filter candidates based on course type and enrollments in other
+        # courses. If current course type is '101', exclude students with
+        # previous '101' enrollments from different academic years and
+        # vice versa for booster courses.
+        # Note: this will filter based on active enrollments in other courses
+        # There is potentially a race condition here based on a student being
+        # reenrolled in another course, so courses should always be processed
+        # in ascending order of academic year to minimize this.
         filtered_candidates = self._filter_candidates_by_course_type(
             membership_candidates, training_course)
 
-        # Studentno will be integration_id in Canvas import
+        # Count enrollments added and dropped for metrics
+        enrollments_added = 0
+        enrollments_dropped = 0
+
+        # Iterate through filtered candidates and add/update enrollments,
+        # removing from enrolled_studentnos set as we go
         for studentno in filtered_candidates:
+            studentno = str(studentno)  # Ensure type consistency
             try:
-                enrollment = self._add_enrollment(studentno, training_course)
+                # Get eligible terms for this student from the membership data
+                eligible_terms = membership_candidates.get(studentno, [])
+                enrollment = self._add_enrollment(studentno,
+                                                  training_course,
+                                                  eligible_terms)
                 enrollments.append(enrollment)
                 enrolled_studentnos.discard(studentno)
+                enrollments_added += 1
             except EnrollmentCourseMismatch as ex:
                 logger.error(ex)
 
-        # cull dropped members
+        # cull dropped members who appear in the course but not in the
+        # filtered candidate list
         now = localtime()
         for dropped_studentno in enrolled_studentnos:
             try:
                 enrollment = Enrollment.objects.get(
                     integration_id=dropped_studentno,
                     course__training_course=training_course)
+                if enrollment.deleted_date is not None:
+                    # already marked as deleted - skip further processing
+                    continue
                 enrollment.deleted_date = now
                 enrollment.priority = ImportResource.PRIORITY_DEFAULT
                 enrollment.save()
+
+                # Create history event for deletion
+                enrollment.create_history_event(
+                    EnrollmentHistoryEvent.EVENT_TYPE_DELETED
+                )
+
                 enrollments.append(enrollment)
+                enrollments_dropped += 1
 
                 self._trigger_course_import(enrollment.course)
 
@@ -63,42 +119,98 @@ class EnrollmentManager(models.Manager):
                 logger.info("Missing dropped enrollment: "
                             f"{dropped_studentno} from {training_course}")
 
+        # Calculate timing and log metrics
+        end_time = time.time()
+        duration = end_time - start_time
+
+        # Log metrics
+        metrics = {
+            "training_course": training_course.course_name,
+            "duration_seconds": round(duration, 3),
+            "existing_enrollments": existing_enrollment_count,
+            "candidates_from_edw": candidate_count,
+            "enrollments_added": enrollments_added,
+            "enrollments_dropped": enrollments_dropped,
+            "timestamp": localtime().isoformat()
+        }
+
+        logger.info(f"Enrollment processing completed for "
+                    f"{training_course.course_name}: "
+                    f"{candidate_count} candidates found, "
+                    f"{enrollments_added} processed, {enrollments_dropped} "
+                    f"dropped in {duration:.3f}s")
+
+        # Write metrics to output file in /tmp
+        try:
+            metrics_file = "/tmp/enrollment_metrics_"
+            f"{training_course.course_name.replace(' ', '_')}.json"
+            with open(metrics_file, 'w') as f:
+                json.dump(metrics, f, indent=2)
+        except Exception as ex:
+            logger.warning(f"Failed to write metrics file: {ex}")
+
         return enrollments
 
-    def _filter_candidates_by_course_type(self, candidates, training_course):
+    def _filter_candidates_by_course_type(self,
+                                          candidates: dict[str, list[str]],
+                                          training_course: TrainingCourse
+                                          ) -> list[str]:
         """
         Filter candidate list based on course type and previous enrollment
         history.
 
+        NOTE: with the has_previous_101_enrollment logic a student who had an
+        enrollment in the previous year which was deleted would be treated as
+        NOT having a previous enrollment and therefore be eligible for 101 and
+        ineligible for booster. This is desirable for students who dropped
+        before census day, but might not be for students who were dropped
+        after census.
+
         Args:
-            candidates (list): List of student integration_ids
+            candidates (dict): Dictionary mapping student integration_ids to
+                               eligible terms
             training_course: TrainingCourse instance
 
         Returns:
-            list: Filtered list of candidates
+            list: Filtered list of candidates (student IDs only)
         """
 
         filtered_candidates = []
 
-        for studentno in candidates:
+        for studentno in candidates.keys():
             has_previous_101_enrollment = self._has_previous_101_enrollment(
                 studentno, training_course)
+            has_same_year_enrollment = self.\
+                _has_enrollment_in_same_academic_year(
+                    studentno, training_course)
 
             if training_course.course_type == TrainingCourse.COURSE_TYPE_101:
-                # For 101 courses, exclude students who already have a
-                # previous 101 enrollment from different academic year
-                if not has_previous_101_enrollment:
-                    filtered_candidates.append(studentno)
-                else:
+                # For 101 courses:
+                # 1. Exclude students who already have enrollment in same
+                #   academic year
+                # 2. Exclude students who have previous 101 enrollment from
+                #   different academic year
+                if has_same_year_enrollment:
+                    logger.debug(f"Excluding {studentno} from 101 course - "
+                                 f"already enrolled in same academic year")
+                elif has_previous_101_enrollment:
                     logger.debug(f"Excluding {studentno} from 101 course - "
                                  f"has previous 101 enrollment from different "
                                  f"academic year")
+                else:
+                    filtered_candidates.append(studentno)
 
             elif training_course.course_type == \
                     TrainingCourse.COURSE_TYPE_BOOSTER:
-                # For booster courses, only include students who have a
-                # previous 101 enrollment from different academic year
-                if has_previous_101_enrollment:
+                # For booster courses:
+                # 1. Exclude students who already have enrollment in same
+                #   academic year
+                # 2. Only include students who have previous 101 enrollment
+                #   from different academic year
+                if has_same_year_enrollment:
+                    logger.debug(f"Excluding {studentno} from booster course -"
+                                 f" already enrolled in same academic year")
+                elif has_previous_101_enrollment:
                     filtered_candidates.append(studentno)
                 else:
                     logger.debug(f"Excluding {studentno} from booster "
@@ -116,6 +228,59 @@ class EnrollmentManager(models.Manager):
 
         return filtered_candidates
 
+    def _get_academic_year(self, term_id):
+        """
+        Extract academic year from term_id.
+
+        Args:
+            term_id (str): Term identifier like 'AY2025-2026-101' or
+                'AY2025-2026-B'
+
+        Returns:
+            str: Academic year portion like 'AY2025-2026'
+        """
+
+        term_parts = re.match(r"^AY(\d{4})-(\d{4})(-.*)?$", term_id)
+        if not term_parts:
+            raise ValueError(
+                f"Invalid term_id format: {term_id}")
+        return f"AY{term_parts.group(1)}-{term_parts.group(2)}"
+
+    def _has_enrollment_in_same_academic_year(self,
+                                              studentno,
+                                              current_training_course):
+        """
+        Check if a student has any active enrollment in the same academic year
+        as the current training course.
+
+        Args:
+            studentno (str): Student number (integration_id to Canvas)
+            current_training_course: Current TrainingCourse instance
+
+        Returns:
+            bool: True if student has enrollment in same academic year,
+                False otherwise
+        """
+        current_academic_year = self._get_academic_year(
+            current_training_course.term_id)
+
+        # Check for any active enrollment in the same academic year
+        same_year_enrollments = self.filter(
+            integration_id=studentno,
+            deleted_date__isnull=True
+        ).exclude(
+            # Exclude current course
+            course__training_course=current_training_course
+        )
+
+        for enrollment in same_year_enrollments:
+            enrollment_academic_year = self._get_academic_year(
+                enrollment.course.training_course.term_id)
+            if enrollment_academic_year == current_academic_year:
+                return True
+
+        return False
+
     def _has_previous_101_enrollment(self, studentno, current_training_course):
         """
         Check if a student has any previous active enrollment in a '101'
@@ -131,7 +296,7 @@ class EnrollmentManager(models.Manager):
             academic year, False otherwise
         """
 
-        # Get current term_id (e.g., 'AY2025-2026')
+        # Get current term_id (e.g., 'AY2025-2026-101')
         current_term_id = current_training_course.term_id
 
         # Get all training courses with course_type='101' where
@@ -147,30 +312,110 @@ class EnrollmentManager(models.Manager):
 
         return previous_101_enrollments
 
-    def _add_enrollment(self, studentno, training_course):
+    def _add_enrollment(self, studentno, training_course, eligible_terms=None):
+        # Add or update enrollment for a given student in the training course
+        # eligible_terms should be a list of term codes,
+        # eg: ['20254A', '20261R']
+        if eligible_terms is None:
+            eligible_terms = []
+
         try:
+            # Get the course this student should be enrolled in
             course_id = training_course.get_course_id_for_member(studentno)
             course = Course.objects.get(course_id=course_id)
+
+            # Get the section this student should be enrolled in (if any)
             section_id = course.get_section_id_for_member(studentno)
             section = (Section.objects.get(section_id=section_id)
                        if section_id is not None else None)
             # priority = Enrollment.PRIORITY_DEFAULT
 
+            # Attempt to get an existing enrollment for this student in this
+            # course. If none exists, we will create a new one in the
+            # except block below. If one does exist, we will update it as
+            # needed.
             enrollment = Enrollment.objects.get(
                 integration_id=studentno,
                 course__training_course=training_course)
 
-            if not (enrollment.course == course
-                    and enrollment.section == section):
+            if enrollment.deleted_date is not None:
+                # This student has a previously deleted enrollment in this
+                # course. Reactivate it as a reenrollment
+                enrollment.deleted_date = None
+                enrollment.priority = ImportResource.PRIORITY_DEFAULT
+
+                # Merge new eligible terms with existing ones
+                enrollment.merge_eligible_terms(eligible_terms)
+                enrollment.save()
+
+                # Create history event for reactivation
+                enrollment.create_history_event(
+                    EnrollmentHistoryEvent.EVENT_TYPE_REACTIVATED
+                )
+
+                self._trigger_course_import(enrollment.course)
+                section_or_course_id = enrollment.section.section_id if \
+                    enrollment.section else enrollment.course.course_id
+                logger.info(f"reactivate enrollment {studentno} in "
+                            f"{section_or_course_id}")
+            else:
+                # Check if eligible_terms actually changed
+                previous_terms = enrollment.eligible_terms.copy() if \
+                    enrollment.eligible_terms else []
+
+                # Merge new eligible terms with existing ones
+                enrollment.merge_eligible_terms(eligible_terms)
+
+                # Check if terms changed after merging
+                current_terms = enrollment.eligible_terms or []
+                terms_changed = set(previous_terms) != set(current_terms)
+
+                # Only save and create history if terms actually changed
+                if terms_changed:
+                    enrollment.save()
+                    enrollment.create_history_event(
+                        EnrollmentHistoryEvent.EVENT_TYPE_UPDATED,
+                        previous_terms=previous_terms
+                    )
+
+            if enrollment.course != course:
+                raise EnrollmentCourseMismatch(
+                    f"Enrollment for {studentno} course change from "
+                    f"{enrollment.course} to {course} NOT allowed")
+            elif enrollment.section != section:
                 orig_course_id = enrollment.course.course_id
                 orig_section_id = (enrollment.section.section_id
-                                   if enrollment.section else "None")
-                raise EnrollmentCourseMismatch(
+                                   if enrollment.section else None)
+                # deactivate old enrollment
+                enrollment.deleted_date = localtime()
+                enrollment.priority = ImportResource.PRIORITY_DEFAULT
+                enrollment.save()
+
+                # Create history event for deletion due to section change
+                enrollment.create_history_event(
+                    EnrollmentHistoryEvent.EVENT_TYPE_DELETED
+                )
+
+                # reactivate prior enrollment or create new one
+                enrollment = Enrollment.objects.get(
+                    integration_id=studentno, course=course, section=section)
+                enrollment.deleted_date = None
+                enrollment.priority = ImportResource.PRIORITY_DEFAULT
+                # Merge eligible terms with existing enrollment
+                enrollment.merge_eligible_terms(eligible_terms)
+                enrollment.save()
+
+                # Log an event showing that an enrollment was created in the
+                # new section.
+                enrollment.create_history_event(
+                    EnrollmentHistoryEvent.EVENT_TYPE_MOVED
+                )
+
+                logger.info(
                     f"Enrollment for {studentno} in "
-                    f"{training_course.course_id_prefix} CHANGED: course from "
-                    f"{orig_course_id} to {course_id}, section from "
-                    f"{orig_section_id} to {section_id}: enrollment "
-                    f"unchanged")
+                    f"{training_course.course_id_prefix} CHANGED from course "
+                    f"{orig_course_id} to {course_id}, section "
+                    f"{orig_section_id} to {section_id}")
 
         except Course.DoesNotExist:
             raise MissingCourseException(
@@ -183,8 +428,18 @@ class EnrollmentManager(models.Manager):
                 f"{training_course.course_id_prefix} missing section model "
                 f"for: {section_id}")
         except Enrollment.DoesNotExist:
+            # Create new enrollment with eligible terms
             enrollment = Enrollment.objects.create(
-                integration_id=studentno, course=course, section=section)
+                integration_id=studentno,
+                course=course,
+                section=section,
+                eligible_terms=eligible_terms)
+
+            # Create history event for new enrollment
+            enrollment.create_history_event(
+                EnrollmentHistoryEvent.EVENT_TYPE_CREATED
+            )
+
             self._trigger_course_import(course)
             logger.info(f"create enrollment {studentno} in "
                         f"{section_id if section_id else course_id}")
@@ -236,7 +491,8 @@ class Enrollment(ImportResource):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     section = models.ForeignKey(Section, null=True, on_delete=models.CASCADE)
     integration_id = models.CharField(max_length=8, db_index=True)
-    created_date = models.DateTimeField(auto_now=True)
+    eligible_terms = models.JSONField(default=list, blank=True)
+    created_date = models.DateTimeField(auto_now_add=True)
     provisioned_date = models.DateTimeField(null=True)
     deleted_date = models.DateTimeField(null=True)
     priority = models.SmallIntegerField(
@@ -250,11 +506,79 @@ class Enrollment(ImportResource):
     def is_active(self):
         return self.deleted_date is None
 
+    def merge_eligible_terms(self, new_terms):
+        """
+        Merge new eligible terms with existing ones, maintaining uniqueness.
+
+        Args:
+            new_terms (list): List of new eligible terms to merge
+        """
+        existing_terms = set(self.eligible_terms or [])
+        new_terms_set = set(new_terms or [])
+        self.eligible_terms = sorted(existing_terms.union(new_terms_set))
+
+    def create_history_event(self, event_type, previous_terms=None):
+        """
+        Create a history event for this enrollment with current state.
+
+        Args:
+            event_type (str): Type of event (created, updated, deleted,
+                              reactivated)
+            previous_terms (list): Previous eligible terms for update events
+        """
+        return EnrollmentHistoryEvent.objects.create(
+            enrollment=self,
+            event_type=event_type,
+            integration_id=self.integration_id,
+            course_id=self.course.course_id,
+            section_id=self.section.section_id if self.section else None,
+            eligible_terms=(self.eligible_terms.copy() if
+                            self.eligible_terms else []),
+            previous_eligible_terms=(previous_terms.copy() if
+                                     previous_terms else None)
+        )
+
+    def get_history_events(self):
+        """Get all history events for this enrollment."""
+        return self.history_events.all()
+
+    def get_latest_history_event(self):
+        """Get the most recent history event for this enrollment."""
+        return self.history_events.first()
+
+    def get_creation_event(self):
+        """Get the creation event for this enrollment."""
+        return self.history_events.filter(
+            event_type=EnrollmentHistoryEvent.EVENT_TYPE_CREATED
+        ).first()
+
+    def has_been_deleted(self):
+        """Check if this enrollment has ever been deleted."""
+        return self.history_events.filter(
+            event_type=EnrollmentHistoryEvent.EVENT_TYPE_DELETED
+        ).exists()
+
+    def has_been_reactivated(self):
+        """Check if this enrollment has ever been reactivated."""
+        return self.history_events.filter(
+            event_type=EnrollmentHistoryEvent.EVENT_TYPE_REACTIVATED
+        ).exists()
+
+    def get_eligible_terms_history(self):
+        """Get history of eligible terms changes for this enrollment."""
+        return self.history_events.filter(
+            event_type__in=[
+                EnrollmentHistoryEvent.EVENT_TYPE_CREATED,
+                EnrollmentHistoryEvent.EVENT_TYPE_UPDATED
+            ]
+        ).values('timestamp', 'eligible_terms', 'previous_eligible_terms')
+
     def json_data(self):
         return {
             'course': self.course.json_data(),
             'section': self.section.json_data() if self.section else None,
             'integration_id': self.integration_id,
+            'eligible_terms': self.eligible_terms,
             'created_date': localtime(self.created_date).isoformat(),
             'provisioned_date': localtime(
                 self.provisioned_date).isoformat() if (
@@ -270,3 +594,177 @@ class Enrollment(ImportResource):
     class Meta:
         db_table = 'enrollment'
         unique_together = ('integration_id', 'course', 'section')
+
+
+class EnrollmentHistoryEventManager(models.Manager):
+    def for_student(self, integration_id):
+        """Get all history events for a specific student."""
+        return self.filter(integration_id=integration_id)
+
+    def for_course(self, course):
+        """Get all history events for a specific course."""
+        return self.filter(enrollment__course=course)
+
+    def by_event_type(self, event_type):
+        """Get all history events of a specific type."""
+        return self.filter(event_type=event_type)
+
+    def for_student_in_course(self, integration_id, course):
+        """Get all history events for a student in a specific course."""
+        return self.filter(
+            integration_id=integration_id,
+            enrollment__course=course
+        )
+
+    def recent_events(self, days=30):
+        """Get history events from the last N days."""
+        from django.utils import timezone
+        from datetime import timedelta
+        cutoff = timezone.now() - timedelta(days=days)
+        return self.filter(timestamp__gte=cutoff)
+
+    def creations_for_course(self, course):
+        """Get all enrollment creation events for a course."""
+        return self.filter(
+            enrollment__course=course,
+            event_type=EnrollmentHistoryEvent.EVENT_TYPE_CREATED
+        )
+
+    def deletions_for_course(self, course):
+        """Get all enrollment deletion events for a course."""
+        return self.filter(
+            enrollment__course=course,
+            event_type=EnrollmentHistoryEvent.EVENT_TYPE_DELETED
+        )
+
+    def updates_with_term_changes(self):
+        """Get update events where eligible terms actually changed."""
+        return self.filter(
+            event_type=EnrollmentHistoryEvent.EVENT_TYPE_UPDATED,
+            previous_eligible_terms__isnull=False
+        ).exclude(eligible_terms=models.F('previous_eligible_terms'))
+
+
+class EnrollmentHistoryEvent(models.Model):
+    """
+    Represents an immutable record of an enrollment event for auditing and
+    historical reference. Each event captures the state of an enrollment at
+    the time the event occurred.
+    """
+
+    EVENT_TYPE_CREATED = 'created'
+    EVENT_TYPE_UPDATED = 'updated'
+    EVENT_TYPE_DELETED = 'deleted'
+    EVENT_TYPE_MOVED = 'moved'
+    EVENT_TYPE_REACTIVATED = 'reactivated'
+
+    EVENT_TYPE_CHOICES = (
+        (EVENT_TYPE_CREATED, 'Enrollment Created'),
+        (EVENT_TYPE_UPDATED, 'Enrollment Updated'),
+        (EVENT_TYPE_DELETED, 'Enrollment Deleted'),
+        (EVENT_TYPE_MOVED, 'Enrollment Moved'),
+        (EVENT_TYPE_REACTIVATED, 'Enrollment Reactivated'),
+    )
+
+    # Relationship
+    enrollment = models.ForeignKey(
+        Enrollment,
+        on_delete=models.CASCADE,
+        related_name='history_events'
+    )
+
+    # Event metadata
+    event_type = models.CharField(
+        max_length=20,
+        choices=EVENT_TYPE_CHOICES,
+        db_index=True
+    )
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    # Enrollment state snapshot at time of event
+    integration_id = models.CharField(max_length=8, db_index=True)
+    course_id = models.CharField(max_length=100)
+    section_id = models.CharField(max_length=100, null=True, blank=True)
+    eligible_terms = models.JSONField(default=list, blank=True)
+
+    # Change context for updates
+    previous_eligible_terms = models.JSONField(
+        default=list,
+        blank=True,
+        null=True,
+        help_text="Previous eligible terms before update (for update events)"
+    )
+
+    objects = EnrollmentHistoryEventManager()
+
+    def json_data(self):
+        return {
+            'enrollment_id': self.enrollment.pk,
+            'event_type': self.event_type,
+            'timestamp': localtime(self.timestamp).isoformat(),
+            'integration_id': self.integration_id,
+            'course_id': self.course_id,
+            'section_id': self.section_id,
+            'eligible_terms': self.eligible_terms,
+            'previous_eligible_terms': self.previous_eligible_terms,
+        }
+
+    def get_terms_added(self):
+        """
+        Get eligible terms that were added in this update event.
+        Returns empty list for non-update events.
+        """
+        if (self.event_type != self.EVENT_TYPE_UPDATED or
+                not self.previous_eligible_terms):
+            return []
+
+        current_terms = set(self.eligible_terms or [])
+        previous_terms = set(self.previous_eligible_terms or [])
+        return sorted(current_terms - previous_terms)
+
+    def get_terms_removed(self):
+        """
+        Get eligible terms that were removed in this update event.
+        Returns empty list for non-update events.
+        """
+        if (self.event_type != self.EVENT_TYPE_UPDATED or
+                not self.previous_eligible_terms):
+            return []
+
+        current_terms = set(self.eligible_terms or [])
+        previous_terms = set(self.previous_eligible_terms or [])
+        return sorted(previous_terms - current_terms)
+
+    def is_terms_update(self):
+        """Check if this event represents an eligible terms update."""
+        return (self.event_type == self.EVENT_TYPE_UPDATED and
+                self.previous_eligible_terms is not None)
+
+    def get_event_summary(self):
+        """Get a human-readable summary of this event."""
+        base = f"{self.get_event_type_display()} for {self.integration_id}"
+        if (self.event_type == self.EVENT_TYPE_UPDATED and
+                self.is_terms_update()):
+            added = self.get_terms_added()
+            removed = self.get_terms_removed()
+            details = []
+            if added:
+                details.append(f"added terms: {added}")
+            if removed:
+                details.append(f"removed terms: {removed}")
+            if details:
+                base += f" ({', '.join(details)})"
+        return base
+
+    def __str__(self):
+        return (f"{self.get_event_type_display()} for {self.integration_id} "
+                f"in {self.course_id} at {self.timestamp}")
+
+    class Meta:
+        db_table = 'enrollment_history_event'
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['integration_id', 'timestamp']),
+            models.Index(fields=['event_type', 'timestamp']),
+            models.Index(fields=['course_id', 'timestamp']),
+        ]

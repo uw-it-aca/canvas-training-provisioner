@@ -1,4 +1,4 @@
-# Copyright 2025 UW-IT, University of Washington
+# Copyright 2026 UW-IT, University of Washington
 # SPDX-License-Identifier: Apache-2.0
 
 from django.core.files.storage import default_storage
@@ -16,6 +16,14 @@ logger = getLogger(__name__)
 
 def get_course_by_sis_id(course_sis_id, params={}):
     return Courses().get_course_by_sis_id(course_sis_id, params)
+
+
+def publish_course_by_sis_id(course_sis_id):
+    return Courses().publish_course_by_sis_id(course_sis_id)
+
+
+def unpublish_course_by_sis_id(course_sis_id):
+    return Courses().unpublish_course_by_sis_id(course_sis_id)
 
 
 def sis_import_by_path(csv_path, override_sis_stickiness=False):
@@ -47,3 +55,11 @@ def get_sis_import_status(import_id):
 
 def delete_sis_import(import_id):
     return SISImport().delete_import(SISImportModel(import_id=str(import_id)))
+
+
+def get_sis_imports(params={}):
+    return SISImport().get_imports(params)
+
+
+def get_import_errors(sis_import):
+    return SISImport().get_import_errors(sis_import)

@@ -1,4 +1,4 @@
-# Copyright 2025 UW-IT, University of Washington
+# Copyright 2026 UW-IT, University of Washington
 # SPDX-License-Identifier: Apache-2.0
 
 from training_provisioner.test import TrainingCourseTestCase
@@ -21,4 +21,11 @@ class EnrollmentsAPITest(TrainingCourseTestCase):
         response = enrollments_api.get(request, integration_id='5432101')
         enrollments = json.loads(response.content)
 
+        # Student 5432101 should be enrolled in 2 courses:
+        # 1. AY2025-2026-101 (initial 101 course)
+        # 2. AY2026-2027-B (booster course for next academic year)
+        # They are excluded from AY2025-2026-B due to being in 101 course for
+        #    same academic year
+        # They are excluded from AY2026-2027-101 due to having previous 101
+        #    enrollment
         self.assertEqual(len(enrollments), 2)

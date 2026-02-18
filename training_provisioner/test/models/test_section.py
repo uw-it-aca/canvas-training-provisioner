@@ -1,4 +1,4 @@
-# Copyright 2025 UW-IT, University of Washington
+# Copyright 2026 UW-IT, University of Washington
 # SPDX-License-Identifier: Apache-2.0
 
 from training_provisioner.test import TrainingCourseTestCase
@@ -8,7 +8,7 @@ from training_provisioner.models.section import Section
 
 
 class SectionModelTest(TrainingCourseTestCase):
-    def test_course_model(self):
+    def test_section_model(self):
         for training_course in TrainingCourse.objects.active_courses():
             Course.objects.add_models_for_training_course(training_course)
             Section.objects.add_models_for_training_course(training_course)

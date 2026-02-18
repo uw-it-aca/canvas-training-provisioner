@@ -1,4 +1,4 @@
-# Copyright 2025 UW-IT, University of Washington
+# Copyright 2026 UW-IT, University of Washington
 # SPDX-License-Identifier: Apache-2.0
 
 from django.db import models
@@ -27,7 +27,10 @@ class TrainingCourseManager(models.Manager):
         return self.filter(**filter)
 
     def load_active_courses(self):
-        for training_course in self.active_courses():
+        # Get active courses and sort by term_id to process earlier academic
+        # years first. This prevents race conditions when checking for
+        # previous enrollments
+        for training_course in self.active_courses().order_by('term_id'):
             logger.info(
                 "Loading training course "
                 f"{training_course.blueprint_course_id} "
@@ -73,25 +76,39 @@ class TrainingCourse(models.Model):
           (COURSE_TYPE_BOOSTER, 'Title VI Booster Course'),
     )
 
-    course_name = models.CharField(max_length=200)
-    blueprint_course_id = models.CharField(max_length=100)
-    term_id = models.CharField(max_length=30, db_index=True)
-    account_id = models.CharField(max_length=80)
+    course_name = models.CharField(
+        max_length=200,
+        help_text="Name given to each provisioned course.")
+    blueprint_course_id = models.CharField(
+        max_length=100,
+        help_text="Each course will based on this blueprint course SIS ID.")
+    term_id = models.CharField(
+        max_length=30, db_index=True,
+        help_text="Each course will be assigned this term SIS ID.")
+    account_id = models.CharField(
+        max_length=80,
+        help_text="Each course will be created in this account SIS ID.")
     membership_type = models.SmallIntegerField(
         default=TEST_MEMBERS,
         choices=MEMBERSHIP_CHOICES)
     course_status = models.SmallIntegerField(
         default=COURSE_STATUS_ACTIVE,
-        choices=COURSE_STATUS_CHOICES)
+        choices=COURSE_STATUS_CHOICES,
+        help_text="Canvas course status applied to each course")
     course_type = models.CharField(
         max_length=50,
         choices=COURSE_TYPE_CHOICES,
         default=COURSE_TYPE_101)
-    is_provisioned = models.BooleanField(default=False)
+    is_provisioned = models.BooleanField(
+        default=False,
+        help_text=("Check to provision courses to canvas. "
+                   "Uncheck will not remove courses from canvas."))
     course_count = models.IntegerField(
-        default=1, validators=[MinValueValidator(1)])
+        default=1, validators=[MinValueValidator(1)],
+        help_text="Number of courses to provision from blueprint course.")
     section_count = models.IntegerField(
-        default=0, validators=[MinValueValidator(0)])
+        default=0, validators=[MinValueValidator(0)],
+        help_text="Number of sections within each course to enroll students.")
     creation_date = models.DateTimeField(auto_now=True)
     deleted_date = models.DateTimeField(null=True, blank=True)
 
@@ -125,19 +142,49 @@ class TrainingCourse(models.Model):
         ordinal = index + 1
         return f"{self.course_id_prefix}{ordinal:03d}"
 
-    def get_course_membership(self):
+    def get_course_membership(self) -> dict[str, list[str]]:
+        # Call the appropriate membership function from dao.membership
+        # based on membership choice type
+        # Warn if empty membership list is returned
+        membership_functions = {
+            'test_membership': test_membership,
+            'title_vi_membership_candidates': title_vi_membership_candidates,
+            'title_vi_booster_membership_candidates':
+                title_vi_booster_membership_candidates,
+        }
+
+        function_name = self.get_membership_type_display()
+        membership_function = membership_functions.get(function_name)
+
+        if not membership_function:
+            raise ValueError(f"Unknown membership type: {function_name}")
+
         try:
-            return eval(f"{self.get_membership_type_display()}(self)")
+            membership_dict = membership_function(self)
+            if not membership_dict:
+                logger.warning(f"Empty membership result for training course "
+                               f"{self.course_name} ("
+                               f"{self.blueprint_course_id} - {self.term_id})."
+                               " This may indicate a failure in membership "
+                               "retrieval.")
+            return membership_dict
         except Exception as ex:
-            raise ValueError(f"Invalid membership: {ex}")
+            raise ValueError(f"Invalid membership: {ex}") from ex
 
     def get_course_id_for_member(self, integration_id):
+        """
+        This function does not look up the student's membership in a given
+        course. Instead, it uses a hash of the student's integration_id to
+        assign them to one of the provisioned courses for this training course
+        (based on self.course_count). This ensures that students are evenly
+        distributed across courses in a deterministic way.
+        """
         return self.course_id(self._course_index_for_member(integration_id))
 
     def _course_index_for_member(self, integration_id):
         """
         Which of the self.course_count courses the
-        member with integration_id is enrolled
+        member with integration_id should be enrolled
         """
         return self._hash(integration_id) % self.course_count
 
@@ -148,6 +195,7 @@ class TrainingCourse(models.Model):
         return int(integration_id)
 
     def load_courses_and_enrollments(self):
+        # Entrypoint for loading jobs for sections, enrollments
         for model in self._dependent_models():
             model.objects.add_models_for_training_course(self)
 

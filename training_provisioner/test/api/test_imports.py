@@ -1,4 +1,4 @@
-# Copyright 2025 UW-IT, University of Washington
+# Copyright 2026 UW-IT, University of Washington
 # SPDX-License-Identifier: Apache-2.0
 
 from training_provisioner.test import TrainingCourseTestCase
@@ -21,7 +21,7 @@ class ImportsAPITest(TrainingCourseTestCase):
 
         self.assertEqual(len(imports.get('imports')), 0)
 
-        import_model = Import.objects.create(
+        _ = Import.objects.create(
             csv_type='course', canvas_id='1')
 
         response = import_list_api.get(request)
@@ -30,7 +30,7 @@ class ImportsAPITest(TrainingCourseTestCase):
         self.assertEqual(len(imports.get('imports')), 1)
 
     def test_get_import(self):
-        import_model = Import.objects.create(
+        _ = Import.objects.create(
             csv_type='course', canvas_id='1')
 
         import_view_api = ImportView()
@@ -43,7 +43,7 @@ class ImportsAPITest(TrainingCourseTestCase):
         self.assertEqual(imports.get('queue_id'), 1)
 
     def test_delete_import(self):
-        import_model = Import.objects.create(
+        _ = Import.objects.create(
             csv_type='course', canvas_id='1',
             post_status=200, canvas_progress=100)
 

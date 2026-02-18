@@ -1,4 +1,4 @@
-# Copyright 2025 UW-IT, University of Washington
+# Copyright 2026 UW-IT, University of Washington
 # SPDX-License-Identifier: Apache-2.0
 
 from django.test import TestCase
@@ -45,4 +45,5 @@ class TrainingCourseTestCase(TestCase):
             '5432108': 5,
             '5432109': 6,
             '5432110': 7,
+            '0123456': 1
         }[member]
