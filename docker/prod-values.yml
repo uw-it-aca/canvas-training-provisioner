@@ -153,7 +153,7 @@ environmentVariables:
     value: uw.instructure.com
 
   - name: CANVAS_ENV
-    value: EVAL
+    value: PROD
   - name: CANVAS_TIMEOUT
     value: "20"
 
