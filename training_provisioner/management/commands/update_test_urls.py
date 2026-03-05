@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
     help = "Update URLs for test canvas student training instances"
-    TEST_DISCOVERY_URL = ("https://test-login.canvas.uw.edu/"
-                         "student-training-login")
+    TEST_DISCOVERY_URL = (
+        "https://test-login.canvas.uw.edu/student-training-login")
 
     def handle(self, *args, **options):
         auth_settings = get_auth_settings()
