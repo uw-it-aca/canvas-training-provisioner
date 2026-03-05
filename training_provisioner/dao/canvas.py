@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from django.core.files.storage import default_storage
-from djang.conf import settings
+from django.conf import settings
 from uw_canvas.courses import Courses
 from uw_canvas.accounts import Accounts
 from uw_canvas.sis_import import SISImport, CSV_FILES
