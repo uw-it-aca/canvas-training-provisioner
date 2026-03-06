@@ -17,12 +17,12 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         auth_settings = get_auth_settings()
-        if auth_settings.auth_discovery_url != self.DISCOVERY_URL:
+        if auth_settings.auth_discovery_url != self.TEST_DISCOVERY_URL:
             logger.info(f"Update discovery url "
                         f"({auth_settings.auth_discovery_url}) to "
                         f"{self.DISCOVERY_URL}")
-            auth_settings.auth_discovery_url = self.DISCOVERY_URL
+            auth_settings.auth_discovery_url = self.TEST_DISCOVERY_URL
             try:
                 update_auth_settings(auth_settings)
-            except as ex:
+            except Exception as ex:
                 logger.error(f"Discovery url update failed: {ex}")
