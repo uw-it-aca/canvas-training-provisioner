@@ -59,3 +59,16 @@ class CanvasSISImportsTest(TestCase):
     def test_delete_sis_import(self, mock_method, mock_model):
         r = delete_sis_import('123')
         mock_model.assert_called_with(import_id='123')
+
+
+class CanvasAuthSettingsTest(TestCase):
+    @mock.patch.object(Accounts, 'get_auth_settings')
+    def test_get_auth_settings(self, mock_method):
+        auth_settings = get_auth_settings()
+        mock_method.assert_called_with('123')
+
+    @mock.patch('uw_canvas.models.CanvasSSOSettings')
+    @mock.patch.object(Accounts, 'update_auth_settings')
+    def test_get_auth_settings(self, mock_method, mock_model):
+        auth_settings = update_auth_settings(mock_model)
+        mock_method.assert_called_with('123', mock_model)

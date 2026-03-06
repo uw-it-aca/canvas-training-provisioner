@@ -120,6 +120,17 @@ cronjob:
         requests:
           cpu: 50m
           memory: 250Mi
+    - name: update-test-urls
+      schedule: "5,35 18-20 * * 0"
+      command: ["/scripts/management_command.sh"]
+      args: ["update_test_urls"]
+      resources:
+        limits:
+          cpu: 500m
+          memory: 256Mi
+        requests:
+          cpu: 25m
+          memory: 64Mi
 
 daemon:
   enabled: true
