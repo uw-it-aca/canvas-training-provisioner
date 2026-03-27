@@ -20,7 +20,7 @@ class Command(BaseCommand):
         if auth_settings.auth_discovery_url != self.TEST_DISCOVERY_URL:
             logger.info(f"Update discovery url "
                         f"({auth_settings.auth_discovery_url}) to "
-                        f"{self.DISCOVERY_URL}")
+                        f"{self.TEST_DISCOVERY_URL}")
             auth_settings.auth_discovery_url = self.TEST_DISCOVERY_URL
             try:
                 update_auth_settings(auth_settings)
