@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from django.core.files.storage import default_storage
+from django.conf import settings
 from uw_canvas.courses import Courses
+from uw_canvas.accounts import Accounts
 from uw_canvas.sis_import import SISImport, CSV_FILES
 from uw_canvas.models import SISImport as SISImportModel
 from logging import getLogger
@@ -63,3 +65,13 @@ def get_sis_imports(params={}):
 
 def get_import_errors(sis_import):
     return SISImport().get_import_errors(sis_import)
+
+
+def get_auth_settings():
+    return Accounts().get_auth_settings(
+        settings.RESTCLIENTS_CANVAS_ACCOUNT_ID)
+
+
+def update_auth_settings(auth_settings):
+    return Accounts.update_auth_settings(
+        settings.RESTCLIENTS_CANVAS_ACCOUNT_ID, auth_settings)
