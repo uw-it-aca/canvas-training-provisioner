@@ -294,6 +294,11 @@ def get_students_from_registration(quarter_code) -> list[str]:
     Returns:
         list: 7 digit (zero-padded) student_numbers of registered students
 
+    TODO: During intersession (and possible earlier) we are getting
+    registrations that show as "matriculated" but then later switch to
+    non-matriculated. See: REF2005715. Once we know more, we may need to
+    update this query to catch such cases.
+
     """
     if not re.match(r"^\d{5}$", str(quarter_code)):
         raise ValueError(f"Invalid quarter_code format: {quarter_code}")
@@ -308,6 +313,36 @@ def get_students_from_registration(quarter_code) -> list[str]:
             AND s1.student_no > 0
             AND rc.enroll_status = 12
             AND rc.regis_class NOT IN (6, 9, 10)
+            AND s1.deceased_dt IS NULL
+    """
+    df = execute_edw_query(query)
+    return df['StudentNumber'].astype(str).str.zfill(7).tolist()
+
+
+def get_non_matric_students_from_registration(quarter_code) -> list[str]:
+    """
+    Given a quarter code like "20254", return list of integration_ids
+    for students who have registrations with a "non-matriculated" status.
+
+    Args:
+        quarter_code (str|int): quarter code like "20254"
+    Returns:
+        list: 7 digit (zero-padded) student_numbers of registered students
+
+    """
+    if not re.match(r"^\d{5}$", str(quarter_code)):
+        raise ValueError(f"Invalid quarter_code format: {quarter_code}")
+
+    query = f"""
+        DECLARE @acaQtr INT = {quarter_code};
+        SELECT s1.student_no AS StudentNumber
+        FROM UWSDBDataStore.sec.registration rc
+        INNER JOIN UWSDBDataStore.sec.student_1 s1
+            ON rc.system_key = s1.system_key
+        WHERE ((rc.regis_yr * 10) + rc.regis_qtr) = @acaQtr
+            AND s1.student_no > 0
+            AND rc.enroll_status = 12
+            AND rc.regis_class IN (6, 9, 10)
             AND s1.deceased_dt IS NULL
     """
     df = execute_edw_query(query)
@@ -337,6 +372,7 @@ def get_students_from_admissions(quarter_code) -> list[str]:
             AND s1.admitted_for_yr = aa.appl_yr
             AND s1.admitted_for_qtr = aa.appl_qtr
         WHERE s1.student_no > 0
+            AND s1.class NOT IN (6, 9, 10)
             AND aa.appl_type != 'N'
             AND aa.appl_status IN (15, 16)
             AND s1.deceased_dt IS NULL
