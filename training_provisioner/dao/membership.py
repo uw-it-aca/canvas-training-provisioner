@@ -294,6 +294,11 @@ def get_students_from_registration(quarter_code) -> list[str]:
     Returns:
         list: 7 digit (zero-padded) student_numbers of registered students
 
+    TODO: During intersession (and possible earlier) we are getting
+    registrations that show as "matriculated" but then later switch to
+    non-matriculated. See: REF2005715. Once we know more, we may need to
+    update this query to catch such cases.
+
     """
     if not re.match(r"^\d{5}$", str(quarter_code)):
         raise ValueError(f"Invalid quarter_code format: {quarter_code}")
@@ -337,6 +342,7 @@ def get_students_from_admissions(quarter_code) -> list[str]:
             AND s1.admitted_for_yr = aa.appl_yr
             AND s1.admitted_for_qtr = aa.appl_qtr
         WHERE s1.student_no > 0
+            AND s1.class NOT IN (6, 9, 10)
             AND aa.appl_type != 'N'
             AND aa.appl_status IN (15, 16)
             AND s1.deceased_dt IS NULL
