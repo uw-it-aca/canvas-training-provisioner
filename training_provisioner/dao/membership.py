@@ -319,6 +319,36 @@ def get_students_from_registration(quarter_code) -> list[str]:
     return df['StudentNumber'].astype(str).str.zfill(7).tolist()
 
 
+def get_non_matric_students_from_registration(quarter_code) -> list[str]:
+    """
+    Given a quarter code like "20254", return list of integration_ids
+    for students who have registrations with a "non-matriculated" status.
+
+    Args:
+        quarter_code (str|int): quarter code like "20254"
+    Returns:
+        list: 7 digit (zero-padded) student_numbers of registered students
+
+    """
+    if not re.match(r"^\d{5}$", str(quarter_code)):
+        raise ValueError(f"Invalid quarter_code format: {quarter_code}")
+
+    query = f"""
+        DECLARE @acaQtr INT = {quarter_code};
+        SELECT s1.student_no AS StudentNumber
+        FROM UWSDBDataStore.sec.registration rc
+        INNER JOIN UWSDBDataStore.sec.student_1 s1
+            ON rc.system_key = s1.system_key
+        WHERE ((rc.regis_yr * 10) + rc.regis_qtr) = @acaQtr
+            AND s1.student_no > 0
+            AND rc.enroll_status = 12
+            AND rc.regis_class IN (6, 9, 10)
+            AND s1.deceased_dt IS NULL
+    """
+    df = execute_edw_query(query)
+    return df['StudentNumber'].astype(str).str.zfill(7).tolist()
+
+
 def get_students_from_admissions(quarter_code) -> list[str]:
     """
     Given a quarter code like "20254", return list of integration_ids
