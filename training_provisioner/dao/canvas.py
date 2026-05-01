@@ -73,5 +73,5 @@ def get_auth_settings():
 
 
 def update_auth_settings(auth_settings):
-    return Accounts.update_auth_settings(
+    return Accounts().update_auth_settings(
         settings.RESTCLIENTS_CANVAS_ACCOUNT_ID, auth_settings)
