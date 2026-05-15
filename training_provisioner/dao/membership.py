@@ -299,6 +299,16 @@ def get_students_from_registration(quarter_code) -> list[str]:
     non-matriculated. See: REF2005715. Once we know more, we may need to
     update this query to catch such cases.
 
+    TODO(EDW_response): (re: REF2005715)
+    I  think what you're running into is that regis_class is used only when it
+    is different from student_1.class. When regis_class = 0, you will need to
+    use student_1.class. What you are encountering is that a student's
+    regis_class is modified by one of our 1st-day processes to be updated with
+    the student's current class in some instances. So, the student is going
+    from class 6 to class 0 to class 6 in your query, depending on when you
+    are running it. So, the logic change would be regis_class should only be
+    used if pending_class = 1. Otherwise, use student_1.class
+
     """
     if not re.match(r"^\d{5}$", str(quarter_code)):
         raise ValueError(f"Invalid quarter_code format: {quarter_code}")
@@ -312,7 +322,10 @@ def get_students_from_registration(quarter_code) -> list[str]:
         WHERE ((rc.regis_yr * 10) + rc.regis_qtr) = @acaQtr
             AND s1.student_no > 0
             AND rc.enroll_status = 12
-            AND rc.regis_class NOT IN (6, 9, 10)
+            AND CASE 
+                    WHEN rc.pending_class = 1 THEN rc.regis_class 
+                    ELSE s1.class 
+                END NOT IN (6, 9, 10)
             AND s1.deceased_dt IS NULL
     """
     df = execute_edw_query(query)
