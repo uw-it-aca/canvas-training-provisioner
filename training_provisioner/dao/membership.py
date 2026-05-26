@@ -294,7 +294,7 @@ def get_students_from_registration(quarter_code) -> list[str]:
     Returns:
         list: 7 digit (zero-padded) student_numbers of registered students
 
-    During intersession we are getting registrations that show as 
+    During intersession we are getting registrations that show as
     "matriculated" but then later switch to non-matriculated.
 
     Fix is to only use registrations.regis_class if pending_class = 1
