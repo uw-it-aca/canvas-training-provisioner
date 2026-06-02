@@ -294,11 +294,12 @@ def get_students_from_registration(quarter_code) -> list[str]:
     Returns:
         list: 7 digit (zero-padded) student_numbers of registered students
 
-    TODO: During intersession (and possible earlier) we are getting
-    registrations that show as "matriculated" but then later switch to
-    non-matriculated. See: REF2005715. Once we know more, we may need to
-    update this query to catch such cases.
+    During intersession we are getting registrations that show as
+    "matriculated" but then later switch to non-matriculated.
 
+    Fix is to only use registrations.regis_class if pending_class = 1
+    (indicating future quarter matric status change), otherwise always use
+    the class code from student_1. See: REF2005715.
     """
     if not re.match(r"^\d{5}$", str(quarter_code)):
         raise ValueError(f"Invalid quarter_code format: {quarter_code}")
@@ -312,7 +313,10 @@ def get_students_from_registration(quarter_code) -> list[str]:
         WHERE ((rc.regis_yr * 10) + rc.regis_qtr) = @acaQtr
             AND s1.student_no > 0
             AND rc.enroll_status = 12
-            AND rc.regis_class NOT IN (6, 9, 10)
+            AND CASE
+                    WHEN rc.pending_class = 1 THEN rc.regis_class
+                    ELSE s1.class
+                END NOT IN (6, 9, 10)
             AND s1.deceased_dt IS NULL
     """
     df = execute_edw_query(query)
