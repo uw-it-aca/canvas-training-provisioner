@@ -5,6 +5,8 @@ from training_provisioner.test import TrainingCourseTestCase
 from training_provisioner.models import Import
 from django.test import override_settings
 from prometheus_client import REGISTRY
+from unittest.mock import patch
+from restclients_core.exceptions import DataFailureException
 
 
 class ImportsAPITest(TrainingCourseTestCase):
@@ -27,3 +29,18 @@ class ImportsAPITest(TrainingCourseTestCase):
 
         self.assertEqual(1, warn_after - warn_before)
         self.assertEqual(1, error_after - error_before)
+
+    def test_import_csv_returns_none_on_data_failure(self):
+        """Regression: import_csv must not raise UnboundLocalError when
+        sis_import_by_path raises DataFailureException."""
+        import_model = Import.objects.create(
+            csv_type='course', csv_path='/fake/path.zip')
+
+        with patch(
+            'training_provisioner.models.sis_import_by_path',
+            side_effect=DataFailureException('canvas', 500, 'Server Error')
+        ):
+            result = import_model.import_csv()
+
+        self.assertIsNone(result)
+        self.assertEqual(import_model.post_status, 500)
