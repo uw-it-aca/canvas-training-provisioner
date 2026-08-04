@@ -93,6 +93,7 @@ class Import(models.Model):
         if not self.csv_path:
             raise MissingImportPathException()
 
+        sis_import = None
         try:
             sis_import = sis_import_by_path(
                 self.csv_path, self.override_sis_stickiness)
@@ -102,6 +103,9 @@ class Import(models.Model):
         except DataFailureException as ex:
             self.post_status = ex.status
             self.canvas_errors = ex
+            logger.error(
+                f"SIS import failed for {self.csv_path}: "
+                f"status={ex.status}, message={ex.msg}")
 
         self.save()
 
