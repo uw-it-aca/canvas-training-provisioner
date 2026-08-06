@@ -199,6 +199,24 @@ class MembershipDAOTest(TrainingCourseTestCase):
             self.assertIn('20254', call_args)
 
     @patch('training_provisioner.dao.membership.execute_edw_query')
+    @patch('training_provisioner.dao.membership.logger')
+    def test_get_info_for_quarter_empty_result(self, mock_logger, mock_query):
+        """
+        Test get_info_for_quarter when EDW returns no rows (e.g., a future
+        quarter not yet in the data warehouse). Should return a default dict
+        with 'Before Census Day' and log a warning.
+        """
+        mock_query.return_value = pd.DataFrame()
+
+        result = get_info_for_quarter("20272")
+
+        self.assertEqual(result['CensusDayStatus'], 'Before Census Day')
+        self.assertEqual(result['AcademicContigYrQtrCode'], '20272')
+        self.assertIsNone(result['AcademicYrName'])
+        mock_logger.warning.assert_called_once()
+        self.assertIn('20272', mock_logger.warning.call_args[0][0])
+
+    @patch('training_provisioner.dao.membership.execute_edw_query')
     def test_get_students_from_registration_valid(self, mock_query):
         """Test get_students_from_registration with valid quarter code."""
         mock_df = pd.DataFrame([
