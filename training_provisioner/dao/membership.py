@@ -130,7 +130,16 @@ def title_vi_membership_candidates(training_course) -> dict[str, list[str]]:
     # ---------------------------
 
     for quartercode in quarters_in_ay:
-        quarter_info = get_info_for_quarter(quartercode)
+        logger.info(
+            f"Processing quarter {quartercode} for term "
+            f"{training_course.term_id}")
+        try:
+            quarter_info = get_info_for_quarter(quartercode)
+        except Exception as e:
+            raise ValueError(
+                f"Failed to get info for quarter {quartercode} "
+                f"(term {training_course.term_id}): {e}") from e
+
         registration_students = get_students_from_registration(quartercode)
         admissions_students = []
 
@@ -152,6 +161,11 @@ def title_vi_membership_candidates(training_course) -> dict[str, list[str]]:
             'admissions_count': len(admissions_students),
             'census_day_status': quarter_info['CensusDayStatus']
         }
+
+        logger.info(
+            f"Quarter {quartercode}: {len(registration_students)} registration"
+            f", {len(admissions_students)} admissions"
+            f" ({quarter_info['CensusDayStatus']})")
 
     # Write debug files for auditing purposes
     _write_debug_files(training_course.term_id,
@@ -226,6 +240,9 @@ def get_current_quarter_info():
         {'AcademicContigYrQtrCode': '20254',
         'AcademicYrName': '2025/2026',
         'CensusDayStatus': 'After Census Day'}
+
+    Raises:
+        ValueError: If EDW returns no data for today's date
     """
     query = """
         SELECT
@@ -243,6 +260,8 @@ def get_current_quarter_info():
         WHERE d.CalendarDate = CONVERT(DATE, GETDATE())
     """
     df = execute_edw_query(query)
+    if df.empty:
+        raise ValueError("EDW returned no data for the current date")
     return df.iloc[0].to_dict()
 
 
@@ -281,6 +300,16 @@ def get_info_for_quarter(quarter_code):
             AND d.AcademicQtrCensusDayInd = 'Y'
     """
     df = execute_edw_query(query)
+    if df.empty:
+        logger.warning(
+            f"EDW returned no data for quarter {quarter_code}. "
+            "This quarter may not yet exist in the data warehouse. "
+            "Defaulting to 'Before Census Day' to include admissions data.")
+        return {
+            'AcademicContigYrQtrCode': str(quarter_code),
+            'AcademicYrName': None,
+            'CensusDayStatus': 'Before Census Day'
+        }
     return df.iloc[0].to_dict()
 
 
