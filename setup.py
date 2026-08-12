@@ -29,6 +29,7 @@ setup(
         'sqlalchemy~=2.0',
         'pandas~=2.1',
         'pymssql~=2.2',
+        'tenacity~=9.1',
     ],
     license='Apache License, Version 2.0',
     description=('An application to manage Training course and enrollment '
