@@ -11,6 +11,11 @@ import os
 from urllib.parse import quote_plus
 from django.conf import settings
 from training_provisioner.exceptions import DataAccessException
+from tenacity import (retry,
+                      retry_if_exception_type,
+                      stop_after_attempt,
+                      wait_exponential,
+                      RetryError)
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +67,16 @@ class EDWConnection:
             DataAccessException: If there's an error connecting or executing
                 the query
         """
+        @retry(
+                stop=stop_after_attempt(3),
+                wait=wait_exponential(multiplier=1, min=4, max=10),
+                retry=retry_if_exception_type(sqlalchemy.exc.OperationalError)
+                )
+        def _fetch_db_data(engine, query):
+            with engine.connect() as conn:
+                data = pd.read_sql(query, con=conn)
+            return data
+
         if not query or not query.strip():
             raise ValueError("Query cannot be empty")
 
@@ -76,27 +91,30 @@ class EDWConnection:
 
         connection_string = self._get_connection_string()
 
+        engine = None
         try:
-            engine = sqlalchemy.create_engine(connection_string)
             start_time = time.time()
-
-            with engine.connect() as conn:
-                data = pd.read_sql(query, con=conn)
-
+            engine = sqlalchemy.create_engine(connection_string)
+            db_data = _fetch_db_data(engine, query)
             elapsed_time = time.time() - start_time
-            logger.info(f"\tData read from {self.host}: {data.shape} "
+            logger.info(f"\tData read from {self.host}: {db_data.shape} "
                         f"(rows, columns)")
             logger.info(f"\tElapsed time: {elapsed_time:.2f}s\n{'*'*40}")
-
-            return data
-
+            return db_data
+        except RetryError as e:
+            logger.error(f"Error while connecting to database: {e}")
+            raise DataAccessException(f"Failed to connect to EDW: {e}") from e
         except sqlalchemy.exc.SQLAlchemyError as e:
             logger.error(f"Database error executing query: {e}")
             raise DataAccessException(
-                f"Failed to execute query against EDW: {e}")
+                f"Failed to execute query against EDW: {e}") from e
         except Exception as e:
             logger.error(f"Unexpected error reading data from EDW: {e}")
-            raise DataAccessException(f"Unexpected error accessing EDW: {e}")
+            raise DataAccessException(f"Unexpected error accessing EDW: {e}") \
+                from e
+        finally:
+            if engine is not None:
+                engine.dispose()
 
     def _get_mock_data(self, query):
         """
