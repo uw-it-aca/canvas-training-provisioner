@@ -13,6 +13,18 @@ ingress:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt
 
+gateway:
+  enabled: true
+  hostnames:
+    - test-apps.studenttraining.uw.edu
+  maxRequestSize: 1Mi
+  requestTimeouts:
+    frontEnd: 30s
+    backEnd: 10s
+  rewriteRedirect:
+    pathRegex: "^/(unknown-user|unauthorized-user)$"
+    redirectHostname: test-login.canvas.uw.edu
+
 lifecycle:
   enabled: true
   preStop:
