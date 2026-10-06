@@ -13,6 +13,11 @@ ingress:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt
 
+gateway:
+  enabled: true
+  hostnames:
+    - apps.studenttraining.uw.edu
+
 lifecycle:
   enabled: true
   preStop:
