@@ -338,6 +338,17 @@ class EnrollmentManager(models.Manager):
                 integration_id=studentno,
                 course__training_course=training_course)
 
+            # Validate course consistency before mutating/saving anything
+            # below - otherwise a mismatch raised after a reactivation or
+            # terms update has already been saved leaves the enrollment
+            # re-activated, which the caller's dropped-member cull pass will
+            # then immediately re-delete since this studentno never gets
+            # discarded from enrolled_studentnos.
+            if enrollment.course != course:
+                raise EnrollmentCourseMismatch(
+                    f"Enrollment for {studentno} course change from "
+                    f"{enrollment.course} to {course} NOT allowed")
+
             if enrollment.deleted_date is not None:
                 # This student has a previously deleted enrollment in this
                 # course. Reactivate it as a reenrollment
@@ -378,11 +389,7 @@ class EnrollmentManager(models.Manager):
                         previous_terms=previous_terms
                     )
 
-            if enrollment.course != course:
-                raise EnrollmentCourseMismatch(
-                    f"Enrollment for {studentno} course change from "
-                    f"{enrollment.course} to {course} NOT allowed")
-            elif enrollment.section != section:
+            if enrollment.section != section:
                 orig_course_id = enrollment.course.course_id
                 orig_section_id = (enrollment.section.section_id
                                    if enrollment.section else None)
@@ -410,6 +417,8 @@ class EnrollmentManager(models.Manager):
                 enrollment.create_history_event(
                     EnrollmentHistoryEvent.EVENT_TYPE_MOVED
                 )
+                # Bump course import
+                self._trigger_course_import(enrollment.course)
 
                 logger.info(
                     f"Enrollment for {studentno} in "
