@@ -49,6 +49,16 @@ class ImportManager(models.Manager):
             canvas_id__isnull=False,
             post_status=200)
 
+    def find_unposted(self):
+        # Imports that attempted a SIS post (post_status was set by
+        # import_csv) but never got a canvas_id back, eg. due to a
+        # timeout or other failure. These are invisible to
+        # find_by_requires_update() and left their dependent models
+        # permanently queued unless cleaned up.
+        return super(ImportManager, self).get_queryset().filter(
+            canvas_id__isnull=True,
+            post_status__isnull=False).exclude(post_status=200)
+
 
 class Import(models.Model):
     """ Represents a set of files that have been queued for import.
@@ -93,6 +103,7 @@ class Import(models.Model):
         if not self.csv_path:
             raise MissingImportPathException()
 
+        sis_import = None  # Ensure this exists if except block below is used
         try:
             sis_import = sis_import_by_path(
                 self.csv_path, self.override_sis_stickiness)
@@ -101,7 +112,7 @@ class Import(models.Model):
             self.canvas_state = sis_import.workflow_state
         except DataFailureException as ex:
             self.post_status = ex.status
-            self.canvas_errors = ex
+            self.canvas_errors = str(ex)
 
         self.save()
 
