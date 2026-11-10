@@ -1,18 +1,3 @@
-ingress:
-  enabled: true
-  tls:
-    studenttraining:
-      secretName: apps.studenttraining.uw.edu-ingress-cert
-      hosts:
-        - apps.studenttraining.uw.edu
-  hosts:
-    studenttraining:
-      host: apps.studenttraining.uw.edu
-      paths:
-        - "/"
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt
-
 gateway:
   enabled: true
   hostnames:
@@ -136,9 +121,9 @@ daemon:
 
 certs:
   mounted: true
-  certPath: /certs/apps.studenttraining.uw.edu-ic.cert
-  keyPath: /certs/apps.studenttraining.uw.edu-ic.key
-  secretName: apps.studenttraining.uw.edu-ic-certs
+  certPath: /certs/apps.studenttraining.uw.edu-uwca.cert
+  keyPath: /certs/apps.studenttraining.uw.edu-uwca.key
+  secretName: apps.studenttraining.uw.edu-uwca-certs
 
 mountedSecrets:
   enabled: true
@@ -151,17 +136,16 @@ mountedSecrets:
 environmentVariables:
   - name: ENV
     value: prod
-
+  - name: OPENSSL_CONF
+    value: /ssl/openssl.cnf
   - name: STUDENTTRAINING_ACCOUNT_DOMAIN
     value: uwstudenttraining.instructure.com
   - name: CANVAS_ACCOUNT_DOMAIN
     value: uw.instructure.com
-
   - name: CANVAS_ENV
     value: PROD
   - name: CANVAS_TIMEOUT
     value: "20"
-
   - name: AUTH
     value: SAML
   - name: SAML_ENTITY_ID
@@ -192,8 +176,8 @@ environmentVariablesSecrets:
     secretKey: storage-project-id
   samlSPCert:
     name: SP_CERT
-    secretName: apps.studenttraining.uw.edu-ic-certs
-    secretKey: apps.studenttraining.uw.edu-ic.cert
+    secretName: apps.studenttraining.uw.edu-uwca-certs
+    secretKey: apps.studenttraining.uw.edu-uwca.cert
   samlIDPCert:
     name: IDP_CERT
     secretName: apps.studenttraining.uw.edu-uw-idp-cert
@@ -255,15 +239,36 @@ externalSecrets:
           property: username
         - name: password
           property: password
-    - name: apps.studenttraining.uw.edu-ic-certs
-      externalKey: studenttraining/prod/ic-certs
+    - name: apps.studenttraining.uw.edu-uwca-certs
+      externalKey: studenttraining/prod/uwca-certs
       data:
-        - name: apps.studenttraining.uw.edu-ic.cert
-          property: apps.studenttraining.uw.edu-ic.cert
-        - name: apps.studenttraining.uw.edu-ic.key
-          property: apps.studenttraining.uw.edu-ic.key
+        - name: apps.studenttraining.uw.edu-uwca.cert
+          property: apps.studenttraining.uw.edu-uwca.cert
+        - name: apps.studenttraining.uw.edu-uwca.key
+          property: apps.studenttraining.uw.edu-uwca.key
     - name: apps.studenttraining.uw.edu-uw-idp-cert
       externalKey: idp-cert
       data:
         - name: uw-idp-cert
           property: cert
+
+podVolumes:
+  openssl-config:
+    volume:
+      configMap:
+        name: openssl-conf
+    mount:
+      mountPath: /ssl
+
+configmaps:
+  openssl-conf:
+    openssl.cnf: |
+      # Downgrade openssl security level to support UWCA certificates with Ubuntu 24.04
+      openssl_conf = default_conf
+      [ default_conf ]
+      ssl_conf = ssl_sect
+      [ssl_sect]
+      system_default = system_default_sect
+      [system_default_sect]
+      MinProtocol = TLSv1.2
+      CipherString = DEFAULT:@SECLEVEL=1
